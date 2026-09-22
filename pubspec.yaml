@@ -1,0 +1,71 @@
+name: nobet_pro
+description: "Nöbet listesi hazırlama ve yönetim uygulaması (Windows + Android)"
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # durum yönetimi
+  provider: ^6.1.2
+
+  # yerel veri saklama (nöbet listeleri, personel, ayarlar)
+  shared_preferences: ^2.3.2
+
+  # pdf / yazdırma
+  pdf: ^3.11.1
+  printing: ^5.13.2
+
+  # bulut eşitleme (Firestore) — cihazlar arası ortak veri
+  firebase_core: ^3.13.0
+  cloud_firestore: ^5.6.5
+
+  # giriş şifresi özetleme (SHA-256)
+  crypto: ^3.0.0
+  firebase_auth: ^5.7.0
+
+  # bordro PDF yükleme — dosya seçimi, temp klasör, açma
+  file_picker: ^8.1.7
+  path_provider: ^2.1.4
+  open_file: ^3.3.2
+
+  # WhatsApp bağlantısı (sol menü alt bilgisi) — marka ikonu + dış bağlantı açma
+  font_awesome_flutter: ^10.8.0
+  url_launcher: ^6.3.1
+
+dev_dependencies:
+  fake_cloud_firestore: ^3.1.0
+  flutter_launcher_icons: ^0.14.4
+  flutter_lints: ^4.0.0
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/
+    - assets/fonts/
+
+# Uygulama simgeleri — kaynak görseller assets/simge/ altındadır.
+# Yeniden üretmek için: flutter pub run flutter_launcher_icons
+flutter_launcher_icons:
+  android: "ic_launcher"
+  image_path: "assets/simge/logo_1024.png"
+  adaptive_icon_background: "assets/simge/ic_launcher_background.png"
+  adaptive_icon_foreground: "assets/simge/ic_launcher_foreground.png"
+  # Windows simgesi elle hazırlanmış çok çözünürlüklü (16–256 px)
+  # windows/runner/resources/app_icon.ico dosyasıdır; otomatik üretim
+  # tek 256 px görüntü ürettiği için kapalı tutuluyor.
+  windows:
+    generate: false
+  web:
+    generate: true
+    image_path: "assets/simge/logo_1024.png"
+    background_color: "#16223D"
+    theme_color: "#16223D"

@@ -88,7 +88,7 @@ class PdfServis {
         ),
         build: (ctx) => [
           _baslik(ayar, kayit, birim),
-          pw.SizedBox(height: 18),
+          pw.SizedBox(height: 8),
           _anaTablo(ayar, personeller, kayit, gunSayisi),
           pw.SizedBox(height: 10),
           _ozetBasligi(kayit),
@@ -114,7 +114,7 @@ class PdfServis {
           pw.Padding(
             padding: const pw.EdgeInsets.only(top: 2),
             child: pw.Image(pw.MemoryImage(_logo!),
-                width: 50, height: 50, fit: pw.BoxFit.contain),
+                width: 66, height: 66, fit: pw.BoxFit.contain),
           ),
         pw.SizedBox(width: 14),
         pw.Column(
@@ -331,7 +331,6 @@ class PdfServis {
           h('YOL'),
           h('GÜNDÜZ'),
           h('GECE'),
-          h('NORMAL\nMESAİ'),
           h('FAZLA\nMESAİ'),
         ],
       ),
@@ -363,7 +362,6 @@ class PdfServis {
         c('$yol'),
         c(f(gunduz)),
         c(f(o.geceSaati)),
-        c(f(o.normalMesai), kalin: true, renk: PdfColors.green800),
         c('${f(o.fazlaMesaiGunu)} GÜN', kalin: true, renk: PdfColors.red800),
       ]));
     }
@@ -384,7 +382,6 @@ class PdfServis {
         10: pw.FixedColumnWidth(32),
         11: pw.FixedColumnWidth(28),
         12: pw.FixedColumnWidth(34),
-        13: pw.FixedColumnWidth(34),
       },
       defaultVerticalAlignment: pw.TableCellVerticalAlignment.middle,
       children: satirlar,

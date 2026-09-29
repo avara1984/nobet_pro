@@ -9,7 +9,6 @@ import '../durum/nobet_durumu.dart';
 import '../modeller/modeller.dart';
 import '../servisler/pdf_servis.dart';
 import 'aylik_ozet_ekrani.dart';
-import 'yonetim_ekranlari.dart';
 
 class NobetListesiEkrani extends StatefulWidget {
   const NobetListesiEkrani({super.key, required this.genis});
@@ -123,7 +122,6 @@ class _NobetListesiEkraniState extends State<NobetListesiEkrani> {
             Expanded(
               child: switch (_sekme) {
                 1 => AylikOzetEkrani(genis: widget.genis),
-                2 => DuyurularEkrani(genis: widget.genis),
                 _ => _liste(),
               },
             ),
@@ -143,45 +141,44 @@ class _NobetListesiEkraniState extends State<NobetListesiEkrani> {
         children: [
           _sekmeButonu(0, 'Nöbet Listesi'),
           _sekmeButonu(1, 'Aylık Özet'),
-          _sekmeButonu(2, 'Duyurular'),
+          const SizedBox(width: 8),
+          OutlinedButton.icon(
+            style: _kompaktCerceve,
+            onPressed: () => _onizlemeGoster(d),
+            icon: const Icon(Icons.visibility_outlined, size: 16),
+            label: const Text('Önizleme'),
+          ),
           const Spacer(),
           // Yayın butonu yalnızca "Onaylanan Liste" versiyonunda gösterilir.
           if (d.aktifVersiyon == kVersiyonOnayli)
-            InkWell(
-              onTap: d.yonetebilir
-                  ? () async {
-                      final simdiYayinda = !d.kayit.yayinda;
-                      final oturum = context.read<OturumDurumu>();
-                      await d.yayinDurumuDegistir(
-                          kaydeden: oturum.kullanici?.ad ?? '');
-                      if (mounted) {
-                        _bilgi(simdiYayinda
-                            ? 'Liste yayına alındı ve kilitlendi.'
-                            : 'Liste yayından kaldırıldı, düzenlemeye açık.');
+            Tooltip(
+              message: d.kayit.yayinda ? 'Yayında' : 'Yayında Değil',
+              child: InkWell(
+                onTap: d.yonetebilir
+                    ? () async {
+                        final simdiYayinda = !d.kayit.yayinda;
+                        final oturum = context.read<OturumDurumu>();
+                        await d.yayinDurumuDegistir(
+                            kaydeden: oturum.kullanici?.ad ?? '');
+                        if (mounted) {
+                          _bilgi(simdiYayinda
+                              ? 'Liste yayına alındı ve kilitlendi.'
+                              : 'Liste yayından kaldırıldı, düzenlemeye açık.');
+                        }
                       }
-                    }
-                  : () => _bilgi('Yayın durumunu yalnızca yönetici değiştirir.'),
-              borderRadius: BorderRadius.circular(8),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-                child: Row(
-                  children: [
-                    Icon(
-                      d.kayit.yayinda
-                          ? Icons.visibility_outlined
-                          : Icons.visibility_off_outlined,
-                      size: 16,
-                      color: d.kayit.yayinda ? R.yesil : R.gri,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      d.kayit.yayinda ? 'Yayında' : 'Yayında Değil',
-                      style: TextStyle(
-                          fontSize: 12.5,
-                          color: d.kayit.yayinda ? R.yesil : R.gri,
-                          fontWeight: FontWeight.w600),
-                    ),
-                  ],
+                    : () =>
+                        _bilgi('Yayın durumunu yalnızca yönetici değiştirir.'),
+                borderRadius: BorderRadius.circular(8),
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                  child: Icon(
+                    d.kayit.yayinda
+                        ? Icons.visibility_outlined
+                        : Icons.visibility_off_outlined,
+                    size: 16.5,
+                    color: d.kayit.yayinda ? R.yesil : R.gri,
+                  ),
                 ),
               ),
             ),
@@ -290,7 +287,7 @@ class _NobetListesiEkraniState extends State<NobetListesiEkrani> {
     // hücreye ayrı ayrı sağ/alt Border eklemek yerine) — tek bir TableBorder
     // TÜM ızgarayı çizdiği için satır/sütun çizgileri arasında piksel
     // kayması olmaz.
-    Widget baslik(String metin) => Container(
+    Widget baslik(String metin, {double boyut = 9.5}) => Container(
           alignment: Alignment.center,
           padding: const EdgeInsets.symmetric(
               vertical: satirDikeyBosluk, horizontal: 2),
@@ -298,17 +295,19 @@ class _NobetListesiEkraniState extends State<NobetListesiEkrani> {
           child: Text(metin,
               textAlign: TextAlign.center,
               maxLines: 2,
-              style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700)),
+              style: TextStyle(fontSize: boyut, fontWeight: FontWeight.w700)),
         );
 
-    Widget hucre(String metin, {Color? renk, bool kalin = false}) => Container(
+    Widget hucre(String metin,
+            {Color? renk, bool kalin = false, double boyut = 10}) =>
+        Container(
           alignment: Alignment.center,
           padding: const EdgeInsets.symmetric(
               vertical: satirDikeyBosluk, horizontal: 2),
           child: Text(metin,
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 10,
+                fontSize: boyut,
                 color: renk,
                 fontWeight: kalin ? FontWeight.w700 : FontWeight.w500,
               )),
@@ -391,16 +390,16 @@ class _NobetListesiEkraniState extends State<NobetListesiEkrani> {
                 children: [
                   TableRow(
                     children: [
-                      baslik('ADI SOYADI'),
+                      baslik('ADI SOYADI', boyut: 11.5),
                       for (final baslikMetni in _ozetSutunlari.values)
-                        baslik(baslikMetni),
+                        baslik(baslikMetni, boyut: 10),
                       if (guvenlikMi) ...[
-                        baslik('NÖBET\nİZNİ'),
-                        baslik('HAFTA\nTATİLİ'),
+                        baslik('NÖBET\nİZNİ', boyut: 10),
+                        baslik('HAFTA\nTATİLİ', boyut: 10),
                       ],
                       baslik('YOL'),
-                      baslik('GÜNDÜZ'),
-                      baslik('GECE'),
+                      baslik('GÜNDÜZ', boyut: 10),
+                      baslik('GECE', boyut: 10),
                       baslik('NORMAL\nMESAİ'),
                       baslik('FAZLA\nMESAİ'),
                     ],
@@ -420,17 +419,17 @@ class _NobetListesiEkraniState extends State<NobetListesiEkrani> {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
-                                    fontSize: 11, fontWeight: FontWeight.w700)),
+                                    fontSize: 13, fontWeight: FontWeight.w700)),
                           ),
                           for (final kod in _ozetSutunlari.keys)
-                            hucre('${o.adet(kod)}'),
+                            hucre('${o.adet(kod)}', boyut: 11),
                           if (guvenlikMi) ...[
-                            hucre('${o.adet(kNobetIzni)}'),
-                            hucre('${o.adet(kHaftaTatili)}'),
+                            hucre('${o.adet(kNobetIzni)}', boyut: 11),
+                            hucre('${o.adet(kHaftaTatili)}', boyut: 11),
                           ],
                           hucre('$yol', kalin: true, renk: R.mavi),
-                          hucre(_ondalikliSayi(gunduz)),
-                          hucre(_ondalikliSayi(o.geceSaati)),
+                          hucre(_ondalikliSayi(gunduz), boyut: 11),
+                          hucre(_ondalikliSayi(o.geceSaati), boyut: 11),
                           hucre(_ondalikliSayi(o.normalMesai),
                               kalin: true, renk: R.yesil),
                           hucre('${_ondalikliSayi(o.fazlaMesaiGunu)} GÜN',
@@ -527,13 +526,6 @@ class _NobetListesiEkraniState extends State<NobetListesiEkrani> {
             icon: const Icon(Icons.picture_as_pdf_outlined, size: 17),
             label: const Text('PDF İndir'),
           ),
-          const SizedBox(width: 8),
-          OutlinedButton.icon(
-            style: _kompaktCerceve,
-            onPressed: () => _onizlemeGoster(d),
-            icon: const Icon(Icons.visibility_outlined, size: 17),
-            label: const Text('Önizleme'),
-          ),
           const Spacer(),
           const Icon(Icons.visibility_outlined, size: 15, color: R.gri),
           const SizedBox(width: 6),
@@ -556,13 +548,6 @@ class _NobetListesiEkraniState extends State<NobetListesiEkrani> {
               icon: const Icon(Icons.picture_as_pdf_outlined, size: 17),
               label: const Text('PDF İndir'),
             ),
-          ),
-          const SizedBox(width: 8),
-          OutlinedButton.icon(
-            style: _kompaktCerceve,
-            onPressed: () => _onizlemeGoster(d),
-            icon: const Icon(Icons.visibility_outlined, size: 17),
-            label: const Text('Önizleme'),
           ),
           const Spacer(),
           const Icon(Icons.visibility_outlined, size: 15, color: R.gri),
@@ -622,12 +607,6 @@ class _NobetListesiEkraniState extends State<NobetListesiEkrani> {
             : null,
         icon: const Icon(Icons.undo, size: 16),
         label: const Text('Geri Al'),
-      ),
-      OutlinedButton.icon(
-        style: _kompaktCerceve,
-        onPressed: () => _onizlemeGoster(d),
-        icon: const Icon(Icons.visibility_outlined, size: 16),
-        label: const Text('Önizleme'),
       ),
     ];
 

@@ -217,3 +217,49 @@ Eski (Firebase tabanlı) uygulamadan uyarlandı; bu sürümde tamamen yereldir.
   `tumVeriyiDisaAktar()` taramasına dahildir.
 - Kaydedilen `BordroSonucu` hesaplandığı hâliyle saklanır; ayarları sonradan
   değiştirmek geçmiş bordroları **değiştirmez**.
+
+## Duyuru bildirim sistemi
+
+`Duyuru`'ya "okundu" alanı yok — "görüldü" durumu tamamen yerelde,
+`NobetDurumu.tercihler` (`SharedPreferences`) üzerinde `uid` bazlı tutulur
+(`son_gorulen_duyuru_<uid>` anahtarı). Kullanıcı bazlı olmasının nedeni:
+ortak kullanılan bir hastane bilgisayarında birden fazla personel giriş
+yapabiliyor; salt cihaz bazlı bir işaret olsaydı biri okuyunca diğeri de
+"okumuş" sayılırdı.
+
+- `NobetDurumu.okunmamisDuyuruSayisi` — aktif birime görünen (`duyurular`
+  getter'ı) duyurulardan `_sonGorulenDuyuruZamani`'ndan sonraki sayısı.
+  İlk girişte (kayıtlı zaman yoksa) `DateTime.now()` ile tohumlanır —
+  yeni bir kullanıcıya geçmişteki tüm duyurular okunmamış gibi yığılmaz.
+- `NobetDurumu.duyurularGoruldu()` — Duyurular ekranına girildiğinde
+  (`ana_ekran.dart`'taki `_bolumSec`) çağrılır, zamanı `DateTime.now()`'a
+  çeker ve diske yazar.
+- `NobetDurumu.duyurulariYenile()` — 5 dakikada bir çalışan bir
+  `Timer.periodic` (`baslat()` içinde kurulur, `dispose()`'da iptal edilir)
+  ve Android'de FCM'den ön planda mesaj geldiğinde bu metodu çağırır;
+  ikisi de aynı anda tetiklenirse `_duyuruYukleniyor` bayrağı çift
+  yüklemeyi engeller.
+- Rozet UI'ı `ana_ekran.dart`'taki `_UstBaslik` (her ekranda sabit üst
+  çubuk) içinde — sol menüdeki "Duyurular" öğesinde ayrı bir rozet yok
+  (bilinçli sadeleştirme).
+
+**Android push (sadece Android — Windows/web FCM desteklemiyor):**
+`lib/servisler/bildirim_servisi.dart`, girişten sonra
+`defaultTargetPlatform == TargetPlatform.android` kontrolüyle çalışır;
+`duyuru-<kurumId>-hepsi` ve (kısıtlı değilse) hem
+`duyuru-<kurumId>-guvenlik` hem `duyuru-<kurumId>-temizlik` konularına
+abone olur. `functions/index.js`'teki `duyuruBildirimGonder` Cloud
+Function'ı, `nobet_pro/duyurular_<kurumId>` belgesinin `j` alanındaki JSON
+dizisini yazma öncesi/sonrası karşılaştırıp (tek belgede tüm duyurular
+saklandığı için "yeni doküman" tetikleyicisi işe yaramaz) yeni eklenen
+duyuru(lar) için ilgili konuya `notification` payload'ı gönderir.
+
+**ÖNEMLİ — Cloud Functions codebase ayrımı:** Aynı Firebase projesini
+(`nobet-sistemi`) paylaşan eski (Firebase tabanlı) uygulamanın kendi
+Cloud Function'ı (`duyuruBildirimi`, `duyurular/{duyuruId}` koleksiyonunu
+dinler — bambaşka bir veri yolu, çakışma yok) zaten `europe-west1`'de
+deployda duruyor. Bu yüzden `firebase.json`'da
+`"functions": {"codebase": "nobetsistemi", ...}` ile **ayrı bir codebase
+adı** kullanılıyor — aksi hâlde `firebase deploy --only functions` bu
+depodaki kaynak kodunda olmayan `duyuruBildirimi`'ni silmeye çalışır
+(interaktif olmayan modda reddedilir ama codebase adını kaldırmayın).

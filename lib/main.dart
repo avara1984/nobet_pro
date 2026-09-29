@@ -22,6 +22,7 @@ import 'ekranlar/ana_ekran.dart';
 import 'ekranlar/giris_ekrani.dart';
 import 'firebase_options.dart';
 import 'modeller/modeller.dart';
+import 'servisler/bildirim_servisi.dart';
 import 'servisler/firestore_servis.dart';
 import 'servisler/veri_servisi.dart';
 import 'servisler/yerel_servis.dart';
@@ -188,7 +189,7 @@ class _NobetProAppState extends State<NobetProApp> {
     return ChangeNotifierProvider.value(
       value: _oturum,
       child: MaterialApp(
-        title: 'Nöbet Pro',
+        title: 'Nöbet Sistemi',
         debugShowCheckedModeBanner: false,
         // Tarih seçici gibi yerleşik Material widget'ları (Cancel/OK,
         // ay/gün adları) Türkçe görünsün diye.
@@ -220,15 +221,21 @@ class _NobetProAppState extends State<NobetProApp> {
                   }
                   return ChangeNotifierProvider<NobetDurumu>(
                     key: ValueKey(oturum.kullanici!.uid),
-                    create: (_) => NobetDurumu(
-                      servis: _servis,
-                      kurumId: kKurumId,
-                      rol: oturum.rol,
-                      sadecePdf: oturum.kullanici?.sadecePdf ?? false,
-                      bordroYetkisi:
-                          oturum.kullanici?.bordroYetkisi ?? false,
-                      kisitliBirimGiris: oturum.kullanici?.kisitliBirim,
-                    )..baslat(),
+                    create: (_) {
+                      final nd = NobetDurumu(
+                        servis: _servis,
+                        kurumId: kKurumId,
+                        rol: oturum.rol,
+                        tercihler: widget.tercihler,
+                        uid: oturum.kullanici!.uid,
+                        sadecePdf: oturum.kullanici?.sadecePdf ?? false,
+                        bordroYetkisi:
+                            oturum.kullanici?.bordroYetkisi ?? false,
+                        kisitliBirimGiris: oturum.kullanici?.kisitliBirim,
+                      );
+                      nd.baslat().then((_) => bildirimleriBaslat(nd));
+                      return nd;
+                    },
                     child: AnaEkran(
                       temaDegistir: _temaDegistir,
                       koyuTema: _koyu,

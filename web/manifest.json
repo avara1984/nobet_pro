@@ -1,6 +1,6 @@
 {
-    "name": "nobet_pro",
-    "short_name": "nobet_pro",
+    "name": "Nöbet Sistemi",
+    "short_name": "Nöbet Sistemi",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#16223D",

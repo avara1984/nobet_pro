@@ -38,6 +38,7 @@ dependencies:
   # WhatsApp bağlantısı (sol menü alt bilgisi) — marka ikonu + dış bağlantı açma
   font_awesome_flutter: ^10.8.0
   url_launcher: ^6.3.1
+  firebase_messaging: ^15.2.10
 
 dev_dependencies:
   fake_cloud_firestore: ^3.1.0

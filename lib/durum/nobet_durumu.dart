@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/dinlenme_kurali.dart';
 import '../core/kapsama_motoru.dart';
@@ -50,6 +51,8 @@ class NobetDurumu extends ChangeNotifier {
     required this.servis,
     required this.kurumId,
     required this.rol,
+    required this.tercihler,
+    required this.uid,
     this.sadecePdf = false,
     this.bordroYetkisi = false,
     Birim? kisitliBirimGiris,
@@ -68,6 +71,14 @@ class NobetDurumu extends ChangeNotifier {
   final VeriServisi servis;
   final String kurumId;
   final Rol rol;
+
+  /// Duyuru "son görüldü" zaman damgasını cihazda saklamak için — bkz.
+  /// [okunmamisDuyuruSayisi] / [duyurularGoruldu].
+  final SharedPreferences tercihler;
+
+  /// Ortak kullanılan bir cihazda birden fazla personel giriş yapabildiği
+  /// için "son görülen duyuru" anahtarı kullanıcıya özel tutulur.
+  final String uid;
 
   /// Eski sistemdeki "bordro" rolü — sadece görüntüleme + PDF, hiçbir
   /// düzenleme aracı kullanılamaz, girişte "Onaylanan Liste" açılır.
@@ -88,6 +99,9 @@ class NobetDurumu extends ChangeNotifier {
   List<Personel> _personeller = [];
   AyKaydi _kayit = AyKaydi(yil: 2026, ay: 1);
   List<Duyuru> _duyurular = [];
+  DateTime? _sonGorulenDuyuruZamani;
+  Timer? _duyuruZamanlayici;
+  bool _duyuruYukleniyor = false;
 
   late int _yil;
   late int _ay;
@@ -127,6 +141,14 @@ class NobetDurumu extends ChangeNotifier {
   /// Filtre uygulanmamış tam liste — Duyurular yönetim ekranında
   /// "hangi birime gidiyor" bilgisini göstermek için kullanılır.
   List<Duyuru> get tumDuyurular => _duyurular;
+
+  /// Aktif birime görünen, henüz "görüldü" işaretlenmemiş duyuru sayısı.
+  int get okunmamisDuyuruSayisi {
+    final sonGorulen = _sonGorulenDuyuruZamani;
+    if (sonGorulen == null) return 0;
+    return duyurular.where((d) => d.tarih.isAfter(sonGorulen)).length;
+  }
+
   /// Kullanıcının görebileceği liste versiyonları.
   /// Yalnızca Süper Admin (yonetici rolü) ve Temizlik Nöbet Admini
   /// (kisitliBirim != null) tüm listeleri görür; diğerleri (Bordro Admini
@@ -228,12 +250,65 @@ class NobetDurumu extends ChangeNotifier {
       _ayar = await servis.kurumAyariGetir(kurumId);
       await _birimVerisiYukle();
       _duyurular = await servis.duyurulariGetir(kurumId);
+      await _sonGorulenDuyuruyuYukle();
+      _duyuruZamanlayiciBaslat();
     } catch (e) {
       _hata = 'Veriler yüklenemedi: $e';
     } finally {
       _yukleniyor = false;
       notifyListeners();
     }
+  }
+
+  static String _duyuruTercihAnahtari(String uid) => 'son_gorulen_duyuru_$uid';
+
+  Future<void> _sonGorulenDuyuruyuYukle() async {
+    final kayitli = tercihler.getString(_duyuruTercihAnahtari(uid));
+    final parsed = kayitli == null ? null : DateTime.tryParse(kayitli);
+    if (parsed != null) {
+      _sonGorulenDuyuruZamani = parsed;
+      return;
+    }
+    // İlk giriş — geçmişteki tüm duyurular "okunmamış" olarak yığılmasın.
+    _sonGorulenDuyuruZamani = DateTime.now();
+    await tercihler.setString(
+        _duyuruTercihAnahtari(uid), _sonGorulenDuyuruZamani!.toIso8601String());
+  }
+
+  /// Duyurular ekranı açıldığında çağrılır — o ana kadarki tüm duyuruları
+  /// "görüldü" işaretler.
+  Future<void> duyurularGoruldu() async {
+    _sonGorulenDuyuruZamani = DateTime.now();
+    await tercihler.setString(
+        _duyuruTercihAnahtari(uid), _sonGorulenDuyuruZamani!.toIso8601String());
+    notifyListeners();
+  }
+
+  void _duyuruZamanlayiciBaslat() {
+    _duyuruZamanlayici?.cancel();
+    _duyuruZamanlayici =
+        Timer.periodic(const Duration(minutes: 5), (_) => duyurulariYenile());
+  }
+
+  /// Duyuruları yeniden çeker — periyodik zamanlayıcı ve (Android'de)
+  /// ön plandayken gelen FCM mesajları tarafından çağrılır.
+  Future<void> duyurulariYenile() async {
+    if (_duyuruYukleniyor) return;
+    _duyuruYukleniyor = true;
+    try {
+      _duyurular = await servis.duyurulariGetir(kurumId);
+      notifyListeners();
+    } catch (_) {
+      // Sessiz geç — _oncekiAyiOku/_sonrakiAyiOku ile aynı desen.
+    } finally {
+      _duyuruYukleniyor = false;
+    }
+  }
+
+  @override
+  void dispose() {
+    _duyuruZamanlayici?.cancel();
+    super.dispose();
   }
 
   Future<void> _birimVerisiYukle() async {

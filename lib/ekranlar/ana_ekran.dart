@@ -103,7 +103,7 @@ class _AnaEkraniState extends State<AnaEkran> {
               : AppBar(
                   backgroundColor: R.yan,
                   foregroundColor: Colors.white,
-                  title: const Text('Nöbet Pro',
+                  title: const Text('Nöbet Sistemi',
                       style: TextStyle(fontWeight: FontWeight.w700)),
                   actions: [
                     IconButton(
@@ -139,6 +139,7 @@ class _AnaEkraniState extends State<AnaEkran> {
                       genis: genis,
                       temaDegistir: widget.temaDegistir,
                       koyuTema: widget.koyuTema,
+                      onDuyurularAc: () => _bolumSec(Bolum.duyurular),
                     ),
                     Expanded(child: _govde(genis)),
                   ],
@@ -175,6 +176,9 @@ class _AnaEkraniState extends State<AnaEkran> {
       );
       if (onay == true) await widget.cikisYap();
       return;
+    }
+    if (b == Bolum.duyurular) {
+      context.read<NobetDurumu>().duyurularGoruldu();
     }
     setState(() => _bolum = b);
   }
@@ -271,19 +275,12 @@ class _YanMenu extends StatelessWidget {
                     backgroundImage: AssetImage('assets/logo.png'),
                   ),
                   SizedBox(width: 10),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('NÖBET PRO',
-                          style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w800,
-                              fontSize: 15,
-                              letterSpacing: .3)),
-                      Text('Yönetim Sistemi',
-                          style: TextStyle(color: R.gri, fontSize: 11)),
-                    ],
-                  ),
+                  Text('NÖBET SİSTEMİ',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 15,
+                          letterSpacing: .3)),
                 ],
               ),
             ),
@@ -601,11 +598,13 @@ class _UstBaslik extends StatelessWidget {
     required this.genis,
     required this.temaDegistir,
     required this.koyuTema,
+    required this.onDuyurularAc,
   });
 
   final bool genis;
   final VoidCallback temaDegistir;
   final bool koyuTema;
+  final VoidCallback onDuyurularAc;
 
   @override
   Widget build(BuildContext context) {
@@ -709,6 +708,41 @@ class _UstBaslik extends StatelessWidget {
       ],
     );
 
+    final duyuruDugmesi = Stack(
+      clipBehavior: Clip.none,
+      children: [
+        IconButton(
+          tooltip: 'Duyurular',
+          onPressed: onDuyurularAc,
+          icon: const Icon(Icons.campaign_outlined, size: 20),
+          visualDensity: VisualDensity.compact,
+        ),
+        if (d.okunmamisDuyuruSayisi > 0)
+          Positioned(
+            right: 4,
+            top: 2,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+              constraints: const BoxConstraints(minWidth: 15, minHeight: 15),
+              decoration: BoxDecoration(
+                color: R.kirmizi,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                '${d.okunmamisDuyuruSayisi}',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 9,
+                  fontWeight: FontWeight.w700,
+                  height: 1.25,
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+
     final basliklar = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -744,7 +778,8 @@ class _UstBaslik extends StatelessWidget {
                 birimDugmesi,
                 const SizedBox(width: 8),
                 donemGrubu,
-                const SizedBox(width: 8),
+                duyuruDugmesi,
+                const SizedBox(width: 4),
                 IconButton(
                   tooltip: koyuTema ? 'Açık tema' : 'Koyu tema',
                   onPressed: temaDegistir,
@@ -776,6 +811,7 @@ class _UstBaslik extends StatelessWidget {
                     Expanded(child: birimDugmesi),
                     const SizedBox(width: 8),
                     donemGrubu,
+                    duyuruDugmesi,
                   ],
                 ),
               ],

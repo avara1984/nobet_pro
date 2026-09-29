@@ -1,4 +1,8 @@
 {
+  "functions": {
+    "source": "functions",
+    "codebase": "nobetsistemi"
+  },
   "hosting": {
     "public": "build/web",
     "ignore": [

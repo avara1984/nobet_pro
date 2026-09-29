@@ -8,7 +8,6 @@ import '../core/tema.dart';
 import '../durum/nobet_durumu.dart';
 import '../modeller/modeller.dart';
 import '../servisler/pdf_servis.dart';
-import 'aylik_ozet_ekrani.dart';
 
 class NobetListesiEkrani extends StatefulWidget {
   const NobetListesiEkrani({super.key, required this.genis});
@@ -21,7 +20,6 @@ class NobetListesiEkrani extends StatefulWidget {
 class _NobetListesiEkraniState extends State<NobetListesiEkrani> {
   final _yatayBaslik = ScrollController();
   final _yatayGovde = ScrollController();
-  int _sekme = 0;
 
   static const double _satirY = 27;
   static const double _baslikY = 37;
@@ -119,12 +117,7 @@ class _NobetListesiEkraniState extends State<NobetListesiEkrani> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _sekmeler(),
-            Expanded(
-              child: switch (_sekme) {
-                1 => AylikOzetEkrani(genis: widget.genis),
-                _ => _liste(),
-              },
-            ),
+            Expanded(child: _liste()),
           ],
         ),
       ),
@@ -139,8 +132,7 @@ class _NobetListesiEkraniState extends State<NobetListesiEkrani> {
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Row(
         children: [
-          _sekmeButonu(0, 'Nöbet Listesi'),
-          _sekmeButonu(1, 'Aylık Özet'),
+          _sekmeEtiketi('Nöbet Listesi'),
           const SizedBox(width: 8),
           OutlinedButton.icon(
             style: _kompaktCerceve,
@@ -148,6 +140,15 @@ class _NobetListesiEkraniState extends State<NobetListesiEkrani> {
             icon: const Icon(Icons.visibility_outlined, size: 16),
             label: const Text('Önizleme'),
           ),
+          if (!d.sadecePdf && !d.personelGorunumu) ...[
+            const SizedBox(width: 8),
+            OutlinedButton.icon(
+              style: _kompaktCerceve,
+              onPressed: d.duzenleyebilir ? () => _aylikNot(d) : null,
+              icon: const Icon(Icons.sticky_note_2_outlined, size: 16),
+              label: const Text('Aylık Not'),
+            ),
+          ],
           const Spacer(),
           // Yayın butonu yalnızca "Onaylanan Liste" versiyonunda gösterilir.
           if (d.aktifVersiyon == kVersiyonOnayli)
@@ -187,25 +188,18 @@ class _NobetListesiEkraniState extends State<NobetListesiEkrani> {
     );
   }
 
-  Widget _sekmeButonu(int i, String baslik) {
-    final aktif = _sekme == i;
-    return InkWell(
-      onTap: () => setState(() => _sekme = i),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-        decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(
-                color: aktif ? R.mavi : Colors.transparent, width: 2.5),
-          ),
-        ),
-        child: Text(baslik,
-            style: TextStyle(
-              fontSize: 13.5,
-              color: aktif ? R.mavi : R.gri,
-              fontWeight: aktif ? FontWeight.w700 : FontWeight.w500,
-            )),
+  Widget _sekmeEtiketi(String baslik) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: R.mavi, width: 2.5)),
       ),
+      child: Text(baslik,
+          style: const TextStyle(
+            fontSize: 13.5,
+            color: R.mavi,
+            fontWeight: FontWeight.w700,
+          )),
     );
   }
 
@@ -590,12 +584,6 @@ class _NobetListesiEkraniState extends State<NobetListesiEkrani> {
         onPressed: d.duzenleyebilir ? () => _listeYap(d) : null,
         icon: const Icon(Icons.auto_awesome_outlined, size: 16),
         label: const Text('Liste Yap'),
-      ),
-      OutlinedButton.icon(
-        style: _kompaktCerceve,
-        onPressed: d.duzenleyebilir ? () => _aylikNot(d) : null,
-        icon: const Icon(Icons.sticky_note_2_outlined, size: 16),
-        label: const Text('Aylık Not'),
       ),
       OutlinedButton.icon(
         style: _kompaktCerceve,

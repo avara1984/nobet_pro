@@ -103,6 +103,17 @@ class PdfServis {
     return belge.save();
   }
 
+  // Satır zemini — öncelik: resmî tatil → yarım gün (arife) → hafta sonu.
+  // Ekrandaki renk şemasıyla aynı sıra (bkz. nobet_listesi_ekrani.dart).
+  static const _tatilZemin = PdfColor(1.0, 0xC2 / 0xFF, 0xB3 / 0xFF); // #FFC2B3
+  static const _yarimGunZemin = PdfColor(1.0, 0xF7 / 0xFF, 0xB8 / 0xFF); // #FFF7B8
+
+  static PdfColor _satirZemini(KurumAyari ayar, DateTime tarih) {
+    if (ayar.resmiTatilMi(tarih)) return _tatilZemin;
+    if (ayar.yarimGunMu(tarih)) return _yarimGunZemin;
+    return T.haftaSonu(tarih) ? PdfColors.grey300 : PdfColors.white;
+  }
+
   // ---------------------------------------------------------------------------
   static pw.Widget _baslik(KurumAyari ayar, AyKaydi kayit, Birim birim) {
     final ayYil = T.ayYil(kayit.yil, kayit.ay).toUpperCase();
@@ -191,14 +202,7 @@ class PdfServis {
 
     for (var g = 1; g <= gunSayisi; g++) {
       final tarih = DateTime(kayit.yil, kayit.ay, g);
-      final tatil = ayar.resmiTatilMi(tarih);
-      final hs = T.haftaSonu(tarih);
-
-      // Ek bulgu 25: kullanıcıların alışık olduğu renk şeması —
-      // resmi tatil somon/kırmızımsı, hafta sonu gri, öncelik tatilde.
-      final zemin = tatil
-          ? const PdfColor(1.0, 0xDB / 0xFF, 0xD1 / 0xFF)  // #FFDBD1 somon
-          : (hs ? PdfColors.grey300 : PdfColors.white);
+      final zemin = _satirZemini(ayar, tarih);
       const yazi = PdfColors.black; // metin kontrastı her zaman sabit
 
       satirlar.add(pw.TableRow(
@@ -613,11 +617,7 @@ class PdfServis {
 
     for (final hafta in haftalar) {
       for (final tarih in hafta) {
-        final tatil = ayar.resmiTatilMi(tarih);
-        final hs = T.haftaSonu(tarih);
-        final zemin = tatil
-            ? const PdfColor(1.0, 0xDB / 0xFF, 0xD1 / 0xFF) // somon
-            : (hs ? PdfColors.grey300 : PdfColors.white);
+        final zemin = _satirZemini(ayar, tarih);
 
         satirlar.add(pw.TableRow(
           decoration: pw.BoxDecoration(color: zemin),
@@ -855,11 +855,7 @@ class PdfServis {
     ];
 
     for (final tarih in gunler) {
-      final tatil = ayar.resmiTatilMi(tarih);
-      final hs = T.haftaSonu(tarih);
-      final zemin = tatil
-          ? const PdfColor(1.0, 0xDB / 0xFF, 0xD1 / 0xFF)
-          : (hs ? PdfColors.grey300 : PdfColors.white);
+      final zemin = _satirZemini(ayar, tarih);
 
       satirlar.add(pw.TableRow(
         decoration: pw.BoxDecoration(color: zemin),

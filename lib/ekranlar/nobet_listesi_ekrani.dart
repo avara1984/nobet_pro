@@ -419,7 +419,7 @@ class _NobetListesiEkraniState extends State<NobetListesiEkrani> {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
-                                    fontSize: 13, fontWeight: FontWeight.w700)),
+                                    fontSize: 12.5, fontWeight: FontWeight.w700)),
                           ),
                           for (final kod in _ozetSutunlari.keys)
                             hucre('${o.adet(kod)}', boyut: 11),
@@ -1432,12 +1432,12 @@ class _NobetListesiEkraniState extends State<NobetListesiEkrani> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(ikon(d.aktifVersiyon), size: 14, color: R.mavi),
+            Icon(ikon(d.aktifVersiyon), size: 14, color: R.kirmizi),
             const SizedBox(width: 5),
             Text(d.kayit.versiyonAdi,
-                style: const TextStyle(fontSize: 12.5, color: R.mavi)),
+                style: const TextStyle(fontSize: 12.5, color: R.kirmizi)),
             const SizedBox(width: 4),
-            const Icon(Icons.lock, size: 12, color: R.mavi),
+            const Icon(Icons.lock, size: 12, color: R.kirmizi),
           ],
         ),
       );
@@ -1530,19 +1530,20 @@ class _NobetListesiEkraniState extends State<NobetListesiEkrani> {
           children: [
             Icon(ikon(d.aktifVersiyon),
                 size: 14,
-                color: d.aktifVersiyon == kVersiyonOnayli ? R.mavi : null),
+                color: d.aktifVersiyon == kVersiyonOnayli ? R.kirmizi : null),
             const SizedBox(width: 5),
             Text(d.kayit.versiyonAdi,
                 style: TextStyle(
                     fontSize: 12.5,
-                    color:
-                        d.aktifVersiyon == kVersiyonOnayli ? R.mavi : null)),
+                    color: d.aktifVersiyon == kVersiyonOnayli
+                        ? R.kirmizi
+                        : null)),
             if (d.kilitli) ...[
               const SizedBox(width: 4),
               Icon(Icons.lock,
                   size: 12,
                   color: d.aktifVersiyon == kVersiyonOnayli
-                      ? R.mavi
+                      ? R.kirmizi
                       : R.yesil),
             ],
             const Icon(Icons.arrow_drop_down, size: 16),

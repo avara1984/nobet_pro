@@ -1012,12 +1012,88 @@ class _Dashboard extends StatelessWidget {
             width: genis ? 800.0 : double.infinity,
             child: _YillikYayinDurumu(yil: d.yil, d: d),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: genis ? 800.0 : double.infinity,
+            child: _aylikBilgilendirme(context, d),
+          ),
+          const SizedBox(height: 16),
           Text('${T.ayYil(d.yil, d.ay)} — Kapsama Sorunu Olan Günler',
               style:
                   const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
           const SizedBox(height: 10),
           ..._sorunListesi(context, d),
+        ],
+      ),
+    );
+  }
+
+  static String _sayi(double v) {
+    final metin = v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(1);
+    return metin.replaceAll('.', ',');
+  }
+
+  /// Seçili ay için: normal çalışma saati, varsa resmî tatiller (arife = yarım
+  /// gün) ve varsa yıllık izin kullananlar.
+  Widget _aylikBilgilendirme(BuildContext context, NobetDurumu d) {
+    final tatiller = <(DateTime, double)>[];
+    for (var g = 1; g <= d.gunSayisi; g++) {
+      final tarih = DateTime(d.yil, d.ay, g);
+      if (d.ayar.resmiTatilMi(tarih)) {
+        tatiller.add((tarih, 1.0));
+      } else if (d.ayar.yarimGunMu(tarih)) {
+        tatiller.add((tarih, 0.5));
+      }
+    }
+    final izinliler =
+        d.ozetler.where((o) => o.yillikIzinKullanilan > 0).toList();
+
+    const govde = TextStyle(fontSize: 12.5, height: 1.5);
+    const kalin =
+        TextStyle(fontSize: 12.5, height: 1.5, fontWeight: FontWeight.w700);
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Tema.kart(context),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Tema.kenar(context)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(children: [
+            Icon(Icons.info_outline, size: 18, color: R.mavi),
+            SizedBox(width: 8),
+            Text('Bilgilendirme',
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+          ]),
+          const SizedBox(height: 10),
+          Text.rich(TextSpan(style: govde, children: [
+            TextSpan(text: '${T.aylar[d.ay - 1]} Ayı Normal Çalışma Saati: '),
+            TextSpan(text: '${_sayi(d.aylikHedefSaat)} Saat', style: kalin),
+          ])),
+          const SizedBox(height: 10),
+          const Text('Resmî Tatiller', style: kalin),
+          if (tatiller.isEmpty)
+            Text('${T.aylar[d.ay - 1]} ayında resmî tatil yok.', style: govde)
+          else
+            for (final (tarih, gun) in tatiller)
+              Text(
+                '${T.tarih(tarih)} ${T.gunAdi(tarih)} — ${_sayi(gun)} gün resmî tatil',
+                style: govde,
+              ),
+          const SizedBox(height: 10),
+          const Text('Yıllık İzin Kullananlar', style: kalin),
+          if (izinliler.isEmpty)
+            Text('${T.aylar[d.ay - 1]} Ayında Yıllık İzin Kullanan Yok',
+                style: govde)
+          else
+            for (final o in izinliler)
+              Text.rich(TextSpan(style: govde, children: [
+                TextSpan(text: o.personel.ad, style: kalin),
+                TextSpan(text: ' — ${o.yillikIzinKullanilan} gün yıllık izin'),
+              ])),
         ],
       ),
     );

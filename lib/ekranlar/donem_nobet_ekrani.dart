@@ -635,9 +635,8 @@ class _DonemNobetEkraniState extends State<DonemNobetEkrani> {
     );
   }
 
-  /// Sol sabit sütunun en altındaki "Toplam" etiketi — sağdaki
-  /// [_toplamSatiri] ile aynı hizada, dönem genelindeki toplam saatlerin
-  /// başlangıcını işaret eder.
+  /// Sol sabit sütunun en altındaki boş hücre — sağdaki [_toplamSatiri] ile
+  /// aynı hizada durur ("Toplam" etiketi o satırın Günler hücresinde).
   Widget _ozetTarihHucresi() => Container(
         width: _tarihW,
         height: _satirY,
@@ -649,11 +648,6 @@ class _DonemNobetEkraniState extends State<DonemNobetEkrani> {
             top: BorderSide(color: _ayGecisSiniri(context), width: 2),
           ),
         ),
-        child: const Text('Toplam',
-            textAlign: TextAlign.center,
-            maxLines: 1,
-            style: TextStyle(
-                fontSize: 10.5, fontWeight: FontWeight.w700, color: R.kirmizi)),
       );
 
   /// Dönemin sonunda, her personel sütununun altında toplam çalışma
@@ -677,7 +671,10 @@ class _DonemNobetEkraniState extends State<DonemNobetEkrani> {
               border: Border(right: BorderSide(color: _cizgi(context))),
             ),
             child: const Text('Toplam',
-                style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700)),
+                style: TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w700,
+                    color: R.kirmizi)),
           ),
           for (final p in personeller)
             Container(

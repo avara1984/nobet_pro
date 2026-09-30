@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "mehmet.sayar.nobetpro" "\0"
-            VALUE "FileDescription", "nobet_pro" "\0"
+            VALUE "FileDescription", "Nöbet Sistemi" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "nobet_pro" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 mehmet.sayar.nobetpro. All rights reserved." "\0"
             VALUE "OriginalFilename", "nobet_pro.exe" "\0"
-            VALUE "ProductName", "nobet_pro" "\0"
+            VALUE "ProductName", "Nöbet Sistemi" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

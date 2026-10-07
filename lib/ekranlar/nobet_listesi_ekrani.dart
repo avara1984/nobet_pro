@@ -138,7 +138,7 @@ class _NobetListesiEkraniState extends State<NobetListesiEkrani> {
             style: _kompaktCerceve,
             onPressed: () => _onizlemeGoster(d),
             icon: const Icon(Icons.visibility_outlined, size: 16),
-            label: const Text('Önizleme'),
+            label: const Text('Önizle'),
           ),
           if (!d.sadecePdf && !d.personelGorunumu) ...[
             const SizedBox(width: 8),

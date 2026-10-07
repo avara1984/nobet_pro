@@ -336,23 +336,6 @@ class _HaftalikNobetEkraniState extends State<HaftalikNobetEkrani> {
               style: _kompaktCerceve,
               onPressed: null,
               icon: const Icon(Icons.picture_as_pdf_outlined, size: 16),
-              label: const Text('PDF İndir'),
-            ),
-          )
-        else
-          OutlinedButton.icon(
-            style: _kompaktCerceve,
-            onPressed: () => _pdf(d),
-            icon: const Icon(Icons.picture_as_pdf_outlined, size: 16),
-            label: const Text('PDF İndir'),
-          ),
-        if (d.personelGorunumu)
-          Tooltip(
-            message: 'PDF indirme yetkiniz yok.',
-            child: OutlinedButton.icon(
-              style: _kompaktCerceve,
-              onPressed: null,
-              icon: const Icon(Icons.picture_as_pdf_outlined, size: 16),
               label: const Text('Haftalık PDF İndir'),
             ),
           )
@@ -367,7 +350,7 @@ class _HaftalikNobetEkraniState extends State<HaftalikNobetEkrani> {
           style: _kompaktCerceve,
           onPressed: () => _onizlemeGoster(d),
           icon: const Icon(Icons.visibility_outlined, size: 16),
-          label: const Text('Önizleme'),
+          label: const Text('Önizle'),
         ),
         if (d.personelGorunumu)
           const Padding(
@@ -1106,31 +1089,6 @@ class _HaftalikNobetEkraniState extends State<HaftalikNobetEkrani> {
     if (!mounted) return;
     setState(() => _yukleniyor = false);
     _bilgi('Haftalık liste kaydedildi.');
-  }
-
-  /// PDF her zaman aktif ayın (Nöbet Listesi ekranındakiyle birebir aynı
-  /// biçimdeki) çıktısını üretir — bu yüzden aktif ayda kaydedilmemiş
-  /// haftalık değişiklik varsa önce kaydetmesi istenir.
-  Future<void> _pdf(NobetDurumu d) async {
-    final aktifAnahtar = T.donemAnahtari(d.yil, d.ay);
-    if (_kirliAylar.contains(aktifAnahtar)) {
-      _bilgi('Bu ayda kaydedilmemiş değişiklikler var. PDF, en son '
-          'kaydedilen hâli kullanır — önce Kaydet\'e basın.');
-      return;
-    }
-    try {
-      await PdfServis.onizle(
-        ayar: d.ayar,
-        personeller: d.personeller,
-        kayit: d.kayit,
-        gunSayisi: d.gunSayisi,
-        ozetler: d.ozetler,
-        birim: d.birim,
-        hedefSaat: d.aylikHedefSaat,
-      );
-    } catch (e) {
-      if (mounted) _bilgi('PDF oluşturulamadı: $e');
-    }
   }
 
   /// Haftalık ızgaranın TAMAMINI (birden fazla ay + haftalık toplam

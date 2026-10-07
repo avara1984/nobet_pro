@@ -425,7 +425,7 @@ class _DonemNobetEkraniState extends State<DonemNobetEkrani> {
           style: _kompaktCerceve,
           onPressed: () => _onizlemeGoster(d),
           icon: const Icon(Icons.visibility_outlined, size: 16),
-          label: const Text('Önizleme'),
+          label: const Text('Önizle'),
         ),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),

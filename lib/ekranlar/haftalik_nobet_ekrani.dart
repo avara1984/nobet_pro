@@ -336,7 +336,7 @@ class _HaftalikNobetEkraniState extends State<HaftalikNobetEkrani> {
               style: _kompaktCerceve,
               onPressed: null,
               icon: const Icon(Icons.picture_as_pdf_outlined, size: 16),
-              label: const Text('Haftalık PDF İndir'),
+              label: const Text('PDF İndir'),
             ),
           )
         else
@@ -344,7 +344,7 @@ class _HaftalikNobetEkraniState extends State<HaftalikNobetEkrani> {
             style: _kompaktCerceve,
             onPressed: () => _pdfHaftalik(d),
             icon: const Icon(Icons.picture_as_pdf_outlined, size: 16),
-            label: const Text('Haftalık PDF İndir'),
+            label: const Text('PDF İndir'),
           ),
         OutlinedButton.icon(
           style: _kompaktCerceve,

@@ -1058,7 +1058,7 @@ class _Dashboard extends StatelessWidget {
       children: [
         Text(_sayi(d.aylikHedefSaat),
             style: const TextStyle(
-                fontSize: 25,
+                fontSize: 22,
                 fontWeight: FontWeight.w800,
                 color: R.mavi,
                 height: 1.1)),

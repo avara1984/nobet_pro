@@ -1033,8 +1033,8 @@ class _Dashboard extends StatelessWidget {
     return metin.replaceAll('.', ',');
   }
 
-  /// Seçili ay için: normal çalışma saati, varsa resmî tatiller (arife = yarım
-  /// gün) ve varsa yıllık izin kullananlar.
+  /// Seçili ay için: normal çalışma saati, resmî tatiller (arife = yarım gün),
+  /// yıllık izin kullananlar ve personel başına toplam/kalan yıllık izin.
   Widget _aylikBilgilendirme(BuildContext context, NobetDurumu d) {
     final tatiller = <(DateTime, double)>[];
     for (var g = 1; g <= d.gunSayisi; g++) {
@@ -1047,53 +1047,224 @@ class _Dashboard extends StatelessWidget {
     }
     final izinliler =
         d.ozetler.where((o) => o.yillikIzinKullanilan > 0).toList();
+    final ayAdi = T.aylar[d.ay - 1];
 
-    const govde = TextStyle(fontSize: 12.5, height: 1.5);
-    const kalin =
-        TextStyle(fontSize: 12.5, height: 1.5, fontWeight: FontWeight.w700);
+    const kalin = TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700);
+    const govde = TextStyle(fontSize: 12.5, height: 1.4);
+
+    final saatIcerik = Row(
+      crossAxisAlignment: CrossAxisAlignment.baseline,
+      textBaseline: TextBaseline.alphabetic,
+      children: [
+        Text(_sayi(d.aylikHedefSaat),
+            style: const TextStyle(
+                fontSize: 30,
+                fontWeight: FontWeight.w800,
+                color: R.mavi,
+                height: 1.1)),
+        const SizedBox(width: 6),
+        const Text('Saat',
+            style: TextStyle(
+                fontSize: 14, fontWeight: FontWeight.w700, color: R.mavi)),
+      ],
+    );
+
+    final tatilIcerik = tatiller.isEmpty
+        ? Row(children: [
+            const Icon(Icons.check_circle_outline, size: 16, color: R.yesil),
+            const SizedBox(width: 8),
+            Expanded(
+                child: Text('$ayAdi ayında resmî tatil yok.', style: govde)),
+          ])
+        : Column(
+            children: [
+              for (final (tarih, gun) in tatiller)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(children: [
+                    Container(
+                      width: 40,
+                      padding: const EdgeInsets.symmetric(vertical: 3),
+                      decoration: BoxDecoration(
+                        color: (gun < 1 ? R.turuncu : R.kirmizi)
+                            .withValues(alpha: .14),
+                        borderRadius: BorderRadius.circular(9),
+                      ),
+                      child: Column(children: [
+                        Text('${tarih.day}',
+                            style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w800,
+                                height: 1.1,
+                                color: gun < 1 ? R.turuncu : R.kirmizi)),
+                        Text(T.gunKisa(tarih),
+                            style: const TextStyle(
+                                fontSize: 9.5, color: R.gri, height: 1.2)),
+                      ]),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(T.gunAdi(tarih), style: kalin),
+                          Text(T.tarih(tarih),
+                              style: const TextStyle(
+                                  fontSize: 11.5, color: R.gri)),
+                        ],
+                      ),
+                    ),
+                    _bilgiChip('${_sayi(gun)} gün',
+                        gun < 1 ? R.turuncu : R.kirmizi),
+                  ]),
+                ),
+            ],
+          );
+
+    final izinIcerik = izinliler.isEmpty
+        ? Row(children: [
+            const Icon(Icons.event_available_outlined,
+                size: 16, color: R.yesil),
+            const SizedBox(width: 8),
+            Expanded(
+                child: Text('$ayAdi Ayında Yıllık İzin Kullanan Yok',
+                    style: govde)),
+          ])
+        : Column(
+            children: [
+              for (final o in izinliler)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(children: [
+                    _bilgiAvatar(o.personel.ad, R.yesil),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(o.personel.ad,
+                          style: kalin, overflow: TextOverflow.ellipsis),
+                    ),
+                    _bilgiChip('${o.yillikIzinKullanilan} gün', R.yesil),
+                  ]),
+                ),
+            ],
+          );
 
     return Container(
-      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Tema.kart(context),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: Tema.kenar(context)),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(colors: [
+                R.mavi.withValues(alpha: .18),
+                R.mavi.withValues(alpha: .03),
+              ]),
+            ),
+            child: Row(children: [
+              const Icon(Icons.info_outline, size: 18, color: R.mavi),
+              const SizedBox(width: 8),
+              const Text('Bilgilendirme',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+              const Spacer(),
+              _bilgiChip(T.ayYil(d.yil, d.ay), R.mavi),
+            ]),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: LayoutBuilder(builder: (context, k) {
+              const aralik = 10.0;
+              final sutun = k.maxWidth >= 640 ? 3 : 1;
+              final w = (k.maxWidth - aralik * (sutun - 1)) / sutun;
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Wrap(
+                    spacing: aralik,
+                    runSpacing: aralik,
+                    children: [
+                      _bilgiKarti(
+                        ikon: Icons.schedule,
+                        renk: R.mavi,
+                        baslik: '$ayAdi Ayı Normal Çalışma Saati',
+                        icerik: saatIcerik,
+                        genislik: w,
+                      ),
+                      _bilgiKarti(
+                        ikon: Icons.celebration_outlined,
+                        renk: R.turuncu,
+                        baslik: 'Resmî Tatiller',
+                        icerik: tatilIcerik,
+                        genislik: w,
+                      ),
+                      _bilgiKarti(
+                        ikon: Icons.beach_access_outlined,
+                        renk: R.yesil,
+                        baslik: 'Yıllık İzin Kullananlar',
+                        icerik: izinIcerik,
+                        genislik: w,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: aralik),
+                  _bilgiKarti(
+                    ikon: Icons.event_note_outlined,
+                    renk: const Color(0xFF8B5CF6),
+                    baslik: 'Yıllık İzin Durumu (Onaylanan Liste)',
+                    icerik: _YillikIzinDurumu(d: d),
+                    genislik: double.infinity,
+                  ),
+                ],
+              );
+            }),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _bilgiKarti({
+    required IconData ikon,
+    required Color renk,
+    required String baslik,
+    required Widget icerik,
+    required double genislik,
+  }) {
+    return Container(
+      width: genislik,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: renk.withValues(alpha: .07),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: renk.withValues(alpha: .28)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(children: [
-            Icon(Icons.info_outline, size: 18, color: R.mavi),
-            SizedBox(width: 8),
-            Text('Bilgilendirme',
-                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+          Row(children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: renk.withValues(alpha: .16),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(ikon, size: 16, color: renk),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(baslik,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w700, fontSize: 13)),
+            ),
           ]),
           const SizedBox(height: 10),
-          Text.rich(TextSpan(style: govde, children: [
-            TextSpan(text: '${T.aylar[d.ay - 1]} Ayı Normal Çalışma Saati: '),
-            TextSpan(text: '${_sayi(d.aylikHedefSaat)} Saat', style: kalin),
-          ])),
-          const SizedBox(height: 10),
-          const Text('Resmî Tatiller', style: kalin),
-          if (tatiller.isEmpty)
-            Text('${T.aylar[d.ay - 1]} ayında resmî tatil yok.', style: govde)
-          else
-            for (final (tarih, gun) in tatiller)
-              Text(
-                '${T.tarih(tarih)} ${T.gunAdi(tarih)} — ${_sayi(gun)} gün resmî tatil',
-                style: govde,
-              ),
-          const SizedBox(height: 10),
-          const Text('Yıllık İzin Kullananlar', style: kalin),
-          if (izinliler.isEmpty)
-            Text('${T.aylar[d.ay - 1]} Ayında Yıllık İzin Kullanan Yok',
-                style: govde)
-          else
-            for (final o in izinliler)
-              Text.rich(TextSpan(style: govde, children: [
-                TextSpan(text: o.personel.ad, style: kalin),
-                TextSpan(text: ' — ${o.yillikIzinKullanilan} gün yıllık izin'),
-              ])),
+          icerik,
         ],
       ),
     );
@@ -1174,6 +1345,120 @@ class _Dashboard extends StatelessWidget {
 // -----------------------------------------------------------------------------
 // Yıllık Yayın Durumu — o yılın 12 ayının Onaylanan Liste yayın durumunu gösterir
 // -----------------------------------------------------------------------------
+/// Personel başına toplam (hak) ve kalan yıllık izin — kullanım HER ZAMAN
+/// "Onaylanan Liste"den okunur ([NobetDurumu.yillikIzinKullanimi], Aylık
+/// Özet panelindeki "Kalan Yıllık İzin" ile aynı hesap).
+class _YillikIzinDurumu extends StatefulWidget {
+  const _YillikIzinDurumu({required this.d});
+  final NobetDurumu d;
+
+  @override
+  State<_YillikIzinDurumu> createState() => _YillikIzinDurumuState();
+}
+
+class _YillikIzinDurumuState extends State<_YillikIzinDurumu> {
+  late Future<Map<String, int>> _gelecek;
+
+  @override
+  void initState() {
+    super.initState();
+    _gelecek = widget.d.yillikIzinKullanimi();
+  }
+
+  @override
+  void didUpdateWidget(_YillikIzinDurumu eski) {
+    super.didUpdateWidget(eski);
+    if (eski.d.yil != widget.d.yil ||
+        eski.d.ay != widget.d.ay ||
+        eski.d.birim != widget.d.birim) {
+      _gelecek = widget.d.yillikIzinKullanimi();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const govde = TextStyle(fontSize: 12.5, height: 1.4);
+    final personeller = widget.d.personeller;
+    if (personeller.isEmpty) {
+      return const Text('Kayıtlı personel yok.', style: govde);
+    }
+    return FutureBuilder<Map<String, int>>(
+      future: _gelecek,
+      builder: (context, anlik) {
+        if (!anlik.hasData) {
+          return const Text('Yükleniyor…', style: govde);
+        }
+        final kullanim = anlik.data!;
+        return Column(
+          children: [
+            for (final p in personeller) _satir(p, kullanim[p.id] ?? 0),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _satir(Personel p, int kullanilan) {
+    final kota = p.yillikIzinKotasi;
+    final kalan = kota - kullanilan;
+    final renk = kalan <= 0
+        ? R.kirmizi
+        : (kalan <= 5 ? R.turuncu : R.yesil);
+    final oran = kota <= 0 ? 0.0 : (kullanilan / kota).clamp(0.0, 1.0);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            _bilgiAvatar(p.ad, renk),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(p.ad,
+                  style: const TextStyle(
+                      fontSize: 12.5, fontWeight: FontWeight.w700),
+                  overflow: TextOverflow.ellipsis),
+            ),
+            Text('Toplam $kota gün',
+                style: const TextStyle(fontSize: 12, color: R.gri)),
+            const SizedBox(width: 8),
+            _bilgiChip('Kalan $kalan gün', renk),
+          ]),
+          const SizedBox(height: 6),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: oran,
+              minHeight: 6,
+              backgroundColor: renk.withValues(alpha: .15),
+              valueColor: AlwaysStoppedAnimation<Color>(renk),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+Widget _bilgiChip(String metin, Color renk) => Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: renk.withValues(alpha: .15),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(metin,
+          style: TextStyle(
+              fontSize: 11, fontWeight: FontWeight.w700, color: renk)),
+    );
+
+Widget _bilgiAvatar(String ad, Color renk) => CircleAvatar(
+      radius: 12,
+      backgroundColor: renk.withValues(alpha: .18),
+      child: Text(_YanMenu._basHarf(ad),
+          style: TextStyle(
+              fontSize: 10.5, fontWeight: FontWeight.w800, color: renk)),
+    );
+
 class _YillikYayinDurumu extends StatefulWidget {
   const _YillikYayinDurumu({required this.yil, required this.d});
   final int yil;

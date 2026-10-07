@@ -132,24 +132,34 @@ class _NobetListesiEkraniState extends State<NobetListesiEkrani> {
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Row(
         children: [
-          _sekmeEtiketi('Nöbet Listesi'),
-          const SizedBox(width: 8),
-          OutlinedButton.icon(
-            style: _kompaktCerceve,
-            onPressed: () => _onizlemeGoster(d),
-            icon: const Icon(Icons.visibility_outlined, size: 16),
-            label: const Text('Önizle'),
-          ),
-          if (!d.sadecePdf && !d.personelGorunumu) ...[
-            const SizedBox(width: 8),
-            OutlinedButton.icon(
-              style: _kompaktCerceve,
-              onPressed: d.duzenleyebilir ? () => _aylikNot(d) : null,
-              icon: const Icon(Icons.sticky_note_2_outlined, size: 16),
-              label: const Text('Aylık Not'),
+          // Dar ekranda (telefon) üç öğe sığmazsa sol grup yatay kayar —
+          // sağdaki yayın ikonu her zaman görünür kalır.
+          Expanded(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  _sekmeEtiketi('Nöbet Listesi'),
+                  const SizedBox(width: 8),
+                  OutlinedButton.icon(
+                    style: _kompaktCerceve,
+                    onPressed: () => _onizlemeGoster(d),
+                    icon: const Icon(Icons.visibility_outlined, size: 16),
+                    label: const Text('Önizle'),
+                  ),
+                  if (!d.sadecePdf && !d.personelGorunumu) ...[
+                    const SizedBox(width: 8),
+                    OutlinedButton.icon(
+                      style: _kompaktCerceve,
+                      onPressed: d.duzenleyebilir ? () => _aylikNot(d) : null,
+                      icon: const Icon(Icons.sticky_note_2_outlined, size: 16),
+                      label: const Text('Aylık Not'),
+                    ),
+                  ],
+                ],
+              ),
             ),
-          ],
-          const Spacer(),
+          ),
           // Yayın butonu yalnızca "Onaylanan Liste" versiyonunda gösterilir.
           if (d.aktifVersiyon == kVersiyonOnayli)
             Tooltip(

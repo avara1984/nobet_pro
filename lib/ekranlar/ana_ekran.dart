@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../core/kapsama_motoru.dart';
+import '../core/mesai_hesap.dart' as mh;
 import '../core/tarih.dart';
 import '../core/tema.dart';
 import '../durum/nobet_durumu.dart';
@@ -1214,6 +1215,14 @@ class _Dashboard extends StatelessWidget {
                   ),
                   const SizedBox(height: aralik),
                   _bilgiKarti(
+                    ikon: Icons.insights_outlined,
+                    renk: R.kirmizi,
+                    baslik: 'Yıl İçi Resmî Tatil Çalışmaları (Fazla Mesai)',
+                    icerik: _YillikFazlaMesai(d: d),
+                    genislik: double.infinity,
+                  ),
+                  const SizedBox(height: aralik),
+                  _bilgiKarti(
                     ikon: Icons.event_note_outlined,
                     renk: const Color(0xFF8B5CF6),
                     baslik: 'Yıllık İzin Durumu (Onaylanan Liste)',
@@ -1458,6 +1467,255 @@ Widget _bilgiAvatar(String ad, Color renk) => CircleAvatar(
           style: TextStyle(
               fontSize: 10.5, fontWeight: FontWeight.w800, color: renk)),
     );
+
+typedef _FazlaMesaiVeri = ({Map<String, List<double>> matris, int sonAy});
+
+/// Yıl başından bulunulan aya kadar (gelecek aylar hariç) resmî tatillerde
+/// çalışmadan doğan fazla mesai günleri — "Onaylanan Liste"den, Raporlar'daki
+/// "Yıllık Fazla Mesai" ile aynı hesapla ([mh.aylikFazlaMesaiGunu]); ay ay
+/// da gösterilir.
+class _YillikFazlaMesai extends StatefulWidget {
+  const _YillikFazlaMesai({required this.d});
+  final NobetDurumu d;
+
+  @override
+  State<_YillikFazlaMesai> createState() => _YillikFazlaMesaiState();
+}
+
+class _YillikFazlaMesaiState extends State<_YillikFazlaMesai> {
+  late Future<_FazlaMesaiVeri> _gelecek;
+
+  @override
+  void initState() {
+    super.initState();
+    _gelecek = _yukle();
+  }
+
+  @override
+  void didUpdateWidget(_YillikFazlaMesai eski) {
+    super.didUpdateWidget(eski);
+    if (eski.d.yil != widget.d.yil || eski.d.birim != widget.d.birim) {
+      _gelecek = _yukle();
+    }
+  }
+
+  Future<_FazlaMesaiVeri> _yukle() async {
+    final d = widget.d;
+    final yil = d.yil;
+    final simdi = DateTime.now();
+    final sonAy = yil == simdi.year ? simdi.month : (yil < simdi.year ? 12 : 0);
+    final matris = <String, List<double>>{
+      for (final p in d.personeller) p.id: List<double>.filled(12, 0),
+    };
+    if (sonAy == 0) return (matris: matris, sonAy: sonAy);
+
+    Future<AyKaydi?> oku(int ay) async {
+      try {
+        return await d.servis
+            .ayKaydiGetir(d.birimId, yil, ay, versiyon: kVersiyonOnayli);
+      } catch (_) {
+        return null;
+      }
+    }
+
+    final kayitlar = await Future.wait([for (var a = 1; a <= sonAy; a++) oku(a)]);
+    AyKaydi? onceki;
+    for (var ay = 1; ay <= sonAy; ay++) {
+      final kayit = kayitlar[ay - 1];
+      if (kayit != null) {
+        for (final p in d.personeller) {
+          matris[p.id]![ay - 1] = mh.aylikFazlaMesaiGunu(
+            ayar: d.ayar,
+            kayit: kayit,
+            oncekiAyKayit: onceki,
+            personelId: p.id,
+            yil: yil,
+            ay: ay,
+          );
+        }
+      }
+      onceki = kayit;
+    }
+    return (matris: matris, sonAy: sonAy);
+  }
+
+  static String _sayi(double v) {
+    final metin =
+        v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(1);
+    return metin.replaceAll('.', ',');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const govde = TextStyle(fontSize: 12.5, height: 1.4);
+    final d = widget.d;
+    if (d.personeller.isEmpty) {
+      return const Text('Kayıtlı personel yok.', style: govde);
+    }
+    return FutureBuilder<_FazlaMesaiVeri>(
+      future: _gelecek,
+      builder: (context, anlik) {
+        if (!anlik.hasData) return const Text('Yükleniyor…', style: govde);
+        final veri = anlik.data!;
+        if (veri.sonAy == 0) {
+          return Text('${d.yil} yılı için henüz veri yok.', style: govde);
+        }
+        final toplamlar = {
+          for (final p in d.personeller)
+            p.id: veri.matris[p.id]!.fold<double>(0, (t, v) => t + v),
+        };
+        final aySum = [
+          for (var i = 0; i < 12; i++)
+            d.personeller.fold<double>(0, (t, p) => t + veri.matris[p.id]![i]),
+        ];
+        final genel = toplamlar.values.fold<double>(0, (t, v) => t + v);
+        final maks =
+            toplamlar.values.fold<double>(1, (m, v) => v > m ? v : m);
+
+        final ozet = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                Text(_sayi(genel),
+                    style: const TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w800,
+                        color: R.kirmizi,
+                        height: 1.1)),
+                const SizedBox(width: 6),
+                const Text('gün',
+                    style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: R.kirmizi)),
+              ],
+            ),
+            const SizedBox(height: 2),
+            Text(
+              'Ocak – ${T.aylar[veri.sonAy - 1]} ${d.yil}\ntoplam fazla mesai',
+              style: const TextStyle(fontSize: 11.5, color: R.gri, height: 1.4),
+            ),
+          ],
+        );
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            LayoutBuilder(builder: (context, k) {
+              final grafik = _grafik(aySum, veri.sonAy);
+              if (k.maxWidth >= 520) {
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    SizedBox(width: 170, child: ozet),
+                    const SizedBox(width: 12),
+                    Expanded(child: grafik),
+                  ],
+                );
+              }
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [ozet, const SizedBox(height: 12), grafik],
+              );
+            }),
+            const SizedBox(height: 14),
+            for (final p in d.personeller)
+              _satir(p, toplamlar[p.id] ?? 0, maks),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _grafik(List<double> aySum, int sonAy) {
+    final maks = aySum.fold<double>(1, (m, v) => v > m ? v : m);
+    const yukseklik = 46.0;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        for (var i = 0; i < 12; i++)
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 2),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    height: 14,
+                    child: aySum[i] > 0
+                        ? Text(_sayi(aySum[i]),
+                            style: const TextStyle(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w700,
+                                color: R.kirmizi))
+                        : null,
+                  ),
+                  Container(
+                    height: aySum[i] <= 0
+                        ? 3.0
+                        : (yukseklik * aySum[i] / maks < 6
+                            ? 6.0
+                            : yukseklik * aySum[i] / maks),
+                    decoration: BoxDecoration(
+                      color: aySum[i] > 0
+                          ? R.kirmizi
+                          : R.gri.withValues(alpha: i < sonAy ? .35 : .15),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    T.aylar[i].substring(0, 3),
+                    style: TextStyle(
+                        fontSize: 9.5, color: i < sonAy ? null : R.gri),
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _satir(Personel p, double toplam, double maks) {
+    final renk = toplam > 0 ? R.kirmizi : R.gri;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: LayoutBuilder(builder: (context, k) {
+        final isim = Text(p.ad,
+            style:
+                const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700),
+            overflow: TextOverflow.ellipsis);
+        return Row(children: [
+          _bilgiAvatar(p.ad, renk),
+          const SizedBox(width: 8),
+          if (k.maxWidth >= 520)
+            SizedBox(width: 170, child: isim)
+          else
+            Expanded(flex: 2, child: isim),
+          const SizedBox(width: 8),
+          Expanded(
+            flex: 3,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: (toplam / maks).clamp(0.0, 1.0),
+                minHeight: 8,
+                backgroundColor: renk.withValues(alpha: .15),
+                valueColor: AlwaysStoppedAnimation<Color>(renk),
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          _bilgiChip('${_sayi(toplam)} gün', renk),
+        ]);
+      }),
+    );
+  }
+}
 
 class _YillikYayinDurumu extends StatefulWidget {
   const _YillikYayinDurumu({required this.yil, required this.d});

@@ -10,6 +10,7 @@ import '../core/tema.dart';
 import '../durum/nobet_durumu.dart';
 import '../modeller/modeller.dart';
 import '../servisler/pdf_servis.dart';
+import 'yayin_uyarisi.dart';
 
 /// "15 - 14 Nöbet" ekranı — ayın 15'inden bir sonraki ayın 14'üne kadar
 /// (bordro dönemiyle aynı sınırlar, bkz. `core/donem_araligi.dart`) süren
@@ -1173,6 +1174,11 @@ class _DonemNobetEkraniState extends State<DonemNobetEkrani> {
   }
 
   Future<void> _onizlemeGoster(NobetDurumu d) async {
+    if (!await d.onizlemeyeIzinVar()) {
+      if (mounted) await yayinlanmadiUyarisiGoster(context);
+      return;
+    }
+    if (!mounted) return;
     final baslikCtrl = ScrollController();
     final govdeCtrl = ScrollController();
     void senkronize() {

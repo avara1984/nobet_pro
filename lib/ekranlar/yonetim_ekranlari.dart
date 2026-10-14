@@ -257,6 +257,7 @@ class PersonellerEkrani extends StatelessWidget {
                   controller: tc,
                   keyboardType: TextInputType.number,
                   maxLength: 11,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   decoration: const InputDecoration(
                     labelText: 'T.C. Kimlik No',
                     helperText: '11 hane. Boş bırakılabilir.',

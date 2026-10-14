@@ -10,6 +10,7 @@ import '../core/tema.dart';
 import '../durum/nobet_durumu.dart';
 import '../modeller/modeller.dart';
 import '../servisler/pdf_servis.dart';
+import 'yayin_uyarisi.dart';
 
 /// Aylık ızgaranın Pazartesi–Pazar haftalara bölünmüş hâli. Seçilen ay
 /// için bir önceki ayın son Pazartesi'sinden bir sonraki ayın ilk
@@ -1125,6 +1126,11 @@ class _HaftalikNobetEkraniState extends State<HaftalikNobetEkrani> {
   /// önizlemesi — arkadaki asıl tablo hâlâ bağlı olduğu için aynı
   /// controller'lar burada tekrar kullanılamaz.
   Future<void> _onizlemeGoster(NobetDurumu d) async {
+    if (!await d.onizlemeyeIzinVar()) {
+      if (mounted) await yayinlanmadiUyarisiGoster(context);
+      return;
+    }
+    if (!mounted) return;
     final baslikCtrl = ScrollController();
     final govdeCtrl = ScrollController();
     void senkronize() {

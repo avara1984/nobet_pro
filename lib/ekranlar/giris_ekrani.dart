@@ -318,6 +318,7 @@ class _GirisEkraniState extends State<GirisEkrani> {
           controller: _tc,
           etiket: 'T.C. Kimlik No veya Kullanıcı Adı',
           ikon: Icons.badge_outlined,
+          kimlikVeyaAd: true,
         ),
         const SizedBox(height: 14),
         _alan(
@@ -491,6 +492,7 @@ class _GirisEkraniState extends State<GirisEkrani> {
     required String etiket,
     required IconData ikon,
     bool tcMi = false,
+    bool kimlikVeyaAd = false,
     bool gizli = false,
     VoidCallback? gizliDegistir,
     VoidCallback? onSubmit,
@@ -504,7 +506,7 @@ class _GirisEkraniState extends State<GirisEkrani> {
               FilteringTextInputFormatter.digitsOnly,
               LengthLimitingTextInputFormatter(11),
             ]
-          : null,
+          : (kimlikVeyaAd ? [_KimlikVeyaAdFormatter()] : null),
       textInputAction:
           onSubmit != null ? TextInputAction.done : TextInputAction.next,
       onSubmitted: onSubmit == null ? null : (_) => onSubmit(),
@@ -526,5 +528,23 @@ class _GirisEkraniState extends State<GirisEkrani> {
         ),
       ),
     );
+  }
+}
+
+/// Giriş alanı hem T.C. Kimlik No hem kullanıcı adı alır: yalnızca rakamdan
+/// oluşan bir giriş (T.C. Kimlik No) 11 haneden fazla yazılamaz; harf içeren
+/// kullanıcı adlarına sınır yok.
+class _KimlikVeyaAdFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+      TextEditingValue eski, TextEditingValue yeni) {
+    final metin = yeni.text;
+    if (metin.length > 11 && RegExp(r'^\d+$').hasMatch(metin)) {
+      return TextEditingValue(
+        text: metin.substring(0, 11),
+        selection: const TextSelection.collapsed(offset: 11),
+      );
+    }
+    return yeni;
   }
 }

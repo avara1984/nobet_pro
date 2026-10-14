@@ -115,6 +115,33 @@ void main() {
       expect(find.text('Hesabınız yok mu? Üye olun'), findsOneWidget);
     });
 
+    testWidgets('giriş alanı: rakam girişi 11 haneyle sınırlı, kullanıcı adı değil',
+        (t) async {
+      final admin = Kullanici.yonetici(
+        uid: 'a',
+        ad: 'Admin',
+        kurumId: 'x',
+        profil: YoneticiProfili.superAdmin,
+        kimlik: '10000000146',
+        sifreHash: Kimlik.sifreOzeti('123456'),
+      );
+      await t.pumpWidget(MaterialApp(
+        theme: Tema.acik,
+        home: GirisEkrani(
+            servis: _FakeServis([admin]), kurumId: 'x', girisYapildi: (_, __) {}),
+      ));
+      await t.pumpAndSettle();
+      final alan =
+          find.widgetWithText(TextField, 'T.C. Kimlik No veya Kullanıcı Adı');
+
+      await t.enterText(alan, '1234567890123456');
+      expect(t.widget<TextField>(alan).controller!.text, '12345678901');
+
+      await t.enterText(alan, 'cok.uzun.kullanici.adi.123456789');
+      expect(t.widget<TextField>(alan).controller!.text,
+          'cok.uzun.kullanici.adi.123456789');
+    });
+
     testWidgets('doğru TC + şifre ile giriş yapılır', (t) async {
       Kullanici? giren;
       final admin = Kullanici.yonetici(

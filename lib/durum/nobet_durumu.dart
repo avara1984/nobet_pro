@@ -275,6 +275,21 @@ class NobetDurumu extends ChangeNotifier {
         _duyuruTercihAnahtari(uid), _sonGorulenDuyuruZamani!.toIso8601String());
   }
 
+  /// Önizleme kapısı: Süper Admin her zaman görür; diğer herkes yalnızca
+  /// seçili ayın "Onaylanan Liste"si yayındaysa. (Liste yayında değilken
+  /// personel ve editörler önizlemeyle listeyi görememeli.)
+  Future<bool> onizlemeyeIzinVar() async {
+    if (yonetebilir) return true;
+    if (_aktifVersiyon == kVersiyonOnayli) return _kayit.yayinda;
+    try {
+      final k = await servis.ayKaydiGetir(_birimId, _yil, _ay,
+          versiyon: kVersiyonOnayli);
+      return k.yayinda;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Duyurular ekranı açıldığında çağrılır — o ana kadarki tüm duyuruları
   /// "görüldü" işaretler.
   Future<void> duyurularGoruldu() async {

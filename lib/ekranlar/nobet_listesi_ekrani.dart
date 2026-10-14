@@ -8,6 +8,7 @@ import '../core/tema.dart';
 import '../durum/nobet_durumu.dart';
 import '../modeller/modeller.dart';
 import '../servisler/pdf_servis.dart';
+import 'yayin_uyarisi.dart';
 
 class NobetListesiEkrani extends StatefulWidget {
   const NobetListesiEkrani({super.key, required this.genis});
@@ -1860,6 +1861,11 @@ class _NobetListesiEkraniState extends State<NobetListesiEkrani> {
   /// "bir controller aynı anda tek kaydırma alanına bağlanabilir"
   /// kısıtını ihlal eder.
   Future<void> _onizlemeGoster(NobetDurumu d) async {
+    if (!await d.onizlemeyeIzinVar()) {
+      if (mounted) await yayinlanmadiUyarisiGoster(context);
+      return;
+    }
+    if (!mounted) return;
     final baslikCtrl = ScrollController();
     final govdeCtrl = ScrollController();
     void senkronize() {

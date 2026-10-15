@@ -289,9 +289,7 @@ class _YanMenu extends StatelessWidget {
               child: ListView(
                 padding: const EdgeInsets.symmetric(horizontal: 10),
                 children: [
-                  if (!sadecePdfMi)
-                    _oge(Bolum.dashboard, Icons.dashboard_outlined,
-                        'Dashboard'),
+                  _oge(Bolum.dashboard, Icons.dashboard_outlined, 'Dashboard'),
                   _oge(Bolum.nobetListesi, Icons.calendar_month_outlined,
                       'Nöbet Listesi'),
                   if (haftalikYetkisi)
@@ -967,6 +965,8 @@ class _Dashboard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final d = context.watch<NobetDurumu>();
+    // Süper Admin dışındaki herkes yalnızca Bilgilendirme alanını görür.
+    final tamYetki = d.yonetebilir;
     return SingleChildScrollView(
       padding: genis
           ? const EdgeInsets.fromLTRB(20, 6, 20, 20)
@@ -974,6 +974,7 @@ class _Dashboard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (tamYetki) ...[
           LayoutBuilder(
             builder: (context, kisit) {
               const aralik = 14.0;
@@ -1019,16 +1020,19 @@ class _Dashboard extends StatelessWidget {
             child: _YillikYayinDurumu(yil: d.yil, d: d),
           ),
           const SizedBox(height: 10),
+          ],
           SizedBox(
             width: genis ? 800.0 : double.infinity,
             child: _aylikBilgilendirme(context, d),
           ),
+          if (tamYetki) ...[
           const SizedBox(height: 16),
           Text('${T.ayYil(d.yil, d.ay)} — Kapsama Sorunu Olan Günler',
               style:
                   const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
           const SizedBox(height: 10),
           ..._sorunListesi(context, d),
+          ],
         ],
       ),
     );
@@ -1127,7 +1131,15 @@ class _Dashboard extends StatelessWidget {
             ],
           );
 
-    final izinIcerik = izinliler.isEmpty
+    final izinIcerik = !d.listeGorunurMu
+        ? const Row(children: [
+            Icon(Icons.lock_outline, size: 16, color: R.gri),
+            SizedBox(width: 8),
+            Expanded(
+                child: Text('Bu Ayın Nöbet Listesi Henüz Yayınlanmamıştır.',
+                    style: govde)),
+          ])
+        : izinliler.isEmpty
         ? Row(children: [
             const Icon(Icons.event_available_outlined,
                 size: 16, color: R.yesil),

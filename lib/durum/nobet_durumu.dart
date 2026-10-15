@@ -275,9 +275,9 @@ class NobetDurumu extends ChangeNotifier {
         _duyuruTercihAnahtari(uid), _sonGorulenDuyuruZamani!.toIso8601String());
   }
 
-  /// Önizleme kapısı: Süper Admin her zaman görür; diğer herkes yalnızca
-  /// seçili ayın "Onaylanan Liste"si yayındaysa. (Liste yayında değilken
-  /// personel ve editörler önizlemeyle listeyi görememeli.)
+  /// Önizleme ve PDF İndir kapısı: Süper Admin her zaman geçer; diğer herkes
+  /// yalnızca seçili ayın "Onaylanan Liste"si yayındaysa. (Liste yayında
+  /// değilken editörler önizleme veya PDF ile listeyi alamamalı.)
   Future<bool> onizlemeyeIzinVar() async {
     if (yonetebilir) return true;
     if (_aktifVersiyon == kVersiyonOnayli) return _kayit.yayinda;

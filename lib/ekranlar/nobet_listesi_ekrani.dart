@@ -1944,6 +1944,11 @@ class _NobetListesiEkraniState extends State<NobetListesiEkrani> {
   }
 
   Future<void> _pdf(NobetDurumu d) async {
+    if (!await d.onizlemeyeIzinVar()) {
+      if (mounted) await yayinlanmadiUyarisiGoster(context);
+      return;
+    }
+    if (!mounted) return;
     try {
       await PdfServis.onizle(
         ayar: d.ayar,

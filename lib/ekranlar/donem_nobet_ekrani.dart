@@ -1153,6 +1153,11 @@ class _DonemNobetEkraniState extends State<DonemNobetEkrani> {
   /// Ekranın kendi (henüz kaydedilmemiş olabilecek) `_kayitlar` haritasından
   /// okur — Haftalık PDF'teki gibi Önizleme'de görülen hâli birebir yansıtır.
   Future<void> _pdf(NobetDurumu d) async {
+    if (!await d.onizlemeyeIzinVar()) {
+      if (mounted) await yayinlanmadiUyarisiGoster(context);
+      return;
+    }
+    if (!mounted) return;
     try {
       final gunler = donemGunleri(d.yil, d.ay);
       await PdfServis.onizleDonem(

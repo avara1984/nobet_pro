@@ -1098,6 +1098,11 @@ class _HaftalikNobetEkraniState extends State<HaftalikNobetEkrani> {
   /// okur — bu yüzden henüz kaydedilmemiş değişiklikler de (Önizleme'de
   /// görüldüğü gibi) çıktıya yansır.
   Future<void> _pdfHaftalik(NobetDurumu d) async {
+    if (!await d.onizlemeyeIzinVar()) {
+      if (mounted) await yayinlanmadiUyarisiGoster(context);
+      return;
+    }
+    if (!mounted) return;
     try {
       await PdfServis.onizleHaftalik(
         ayar: d.ayar,

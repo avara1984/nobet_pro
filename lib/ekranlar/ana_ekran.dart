@@ -805,14 +805,19 @@ class _UstBaslik extends StatelessWidget {
           : Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                basliklar,
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: basliklar),
+                    duyuruDugmesi,
+                  ],
+                ),
                 const SizedBox(height: 10),
                 Row(
                   children: [
                     Expanded(child: birimDugmesi),
                     const SizedBox(width: 8),
                     donemGrubu,
-                    duyuruDugmesi,
                   ],
                 ),
               ],
@@ -1414,37 +1419,49 @@ class _YillikIzinDurumuState extends State<_YillikIzinDurumu> {
         ? R.kirmizi
         : (kalan <= 5 ? R.turuncu : R.yesil);
     final oran = kota <= 0 ? 0.0 : (kullanilan / kota).clamp(0.0, 1.0);
+    final toplamYazi = Text('Toplam $kota gün',
+        style: const TextStyle(fontSize: 12, color: R.gri));
+    final cubuk = ClipRRect(
+      borderRadius: BorderRadius.circular(4),
+      child: LinearProgressIndicator(
+        value: oran,
+        minHeight: 6,
+        backgroundColor: renk.withValues(alpha: .15),
+        valueColor: AlwaysStoppedAnimation<Color>(renk),
+      ),
+    );
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(children: [
-            _bilgiAvatar(p.ad, renk),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(p.ad,
-                  style: const TextStyle(
-                      fontSize: 12.5, fontWeight: FontWeight.w700),
-                  overflow: TextOverflow.ellipsis),
-            ),
-            Text('Toplam $kota gün',
-                style: const TextStyle(fontSize: 12, color: R.gri)),
-            const SizedBox(width: 8),
-            _bilgiChip('Kalan $kalan gün', renk),
-          ]),
-          const SizedBox(height: 6),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: LinearProgressIndicator(
-              value: oran,
-              minHeight: 6,
-              backgroundColor: renk.withValues(alpha: .15),
-              valueColor: AlwaysStoppedAnimation<Color>(renk),
-            ),
-          ),
-        ],
-      ),
+      child: LayoutBuilder(builder: (context, k) {
+        // Dar telefonda "Toplam" yazısı ismi kısaltmasın diye çubuğun yanına iner.
+        final dar = k.maxWidth < 320;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              _bilgiAvatar(p.ad, renk),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(p.ad,
+                    style: const TextStyle(
+                        fontSize: 12.5, fontWeight: FontWeight.w700),
+                    overflow: TextOverflow.ellipsis),
+              ),
+              if (!dar) ...[toplamYazi, const SizedBox(width: 8)],
+              _bilgiChip('Kalan $kalan gün', renk),
+            ]),
+            const SizedBox(height: 6),
+            if (dar)
+              Row(children: [
+                Expanded(child: cubuk),
+                const SizedBox(width: 8),
+                toplamYazi,
+              ])
+            else
+              cubuk,
+          ],
+        );
+      }),
     );
   }
 }
@@ -1689,26 +1706,24 @@ class _YillikFazlaMesaiState extends State<_YillikFazlaMesai> {
             style:
                 const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700),
             overflow: TextOverflow.ellipsis);
+        final genis = k.maxWidth >= 520;
+        final cubuk = ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: LinearProgressIndicator(
+            value: (toplam / maks).clamp(0.0, 1.0),
+            minHeight: 8,
+            backgroundColor: renk.withValues(alpha: .15),
+            valueColor: AlwaysStoppedAnimation<Color>(renk),
+          ),
+        );
+        // Telefonda isim tam görünsün diye çubuk kısa ve sabit genişlikte;
+        // kalan yeri isim alır.
         return Row(children: [
           _bilgiAvatar(p.ad, renk),
           const SizedBox(width: 8),
-          if (k.maxWidth >= 520)
-            SizedBox(width: 170, child: isim)
-          else
-            Expanded(flex: 2, child: isim),
+          if (genis) SizedBox(width: 170, child: isim) else Expanded(child: isim),
           const SizedBox(width: 8),
-          Expanded(
-            flex: 3,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: (toplam / maks).clamp(0.0, 1.0),
-                minHeight: 8,
-                backgroundColor: renk.withValues(alpha: .15),
-                valueColor: AlwaysStoppedAnimation<Color>(renk),
-              ),
-            ),
-          ),
+          if (genis) Expanded(child: cubuk) else SizedBox(width: 75, child: cubuk),
           const SizedBox(width: 10),
           _bilgiChip('${_sayi(toplam)} gün', renk),
         ]);

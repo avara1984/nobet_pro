@@ -971,7 +971,10 @@ class _Dashboard extends StatelessWidget {
       padding: genis
           ? const EdgeInsets.fromLTRB(20, 6, 20, 20)
           : const EdgeInsets.fromLTRB(12, 4, 12, 12),
-      child: Column(
+      // Tam genişlik: yalnızca Bilgilendirme görünen kullanıcılarda da sola yaslı.
+      child: SizedBox(
+        width: double.infinity,
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (tamYetki) ...[
@@ -1034,6 +1037,7 @@ class _Dashboard extends StatelessWidget {
           ..._sorunListesi(context, d),
           ],
         ],
+      ),
       ),
     );
   }

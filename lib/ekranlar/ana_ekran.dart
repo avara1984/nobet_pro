@@ -1228,7 +1228,7 @@ class _Dashboard extends StatelessWidget {
                       _bilgiKarti(
                         ikon: Icons.beach_access_outlined,
                         renk: R.yesil,
-                        baslik: 'Yıllık İzin Kullananlar',
+                        baslik: 'Yıllık İzin Kullanan Personel',
                         icerik: izinIcerik,
                         genislik: w,
                       ),

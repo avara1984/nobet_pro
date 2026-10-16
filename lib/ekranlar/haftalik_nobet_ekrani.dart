@@ -287,6 +287,22 @@ class _HaftalikNobetEkraniState extends State<HaftalikNobetEkrani> {
     side: const BorderSide(color: Color(0xFF00C853), width: 1.5),
   );
 
+  static final ButtonStyle _darCerceve = OutlinedButton.styleFrom(
+    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 10),
+    textStyle: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500),
+    visualDensity: VisualDensity.compact,
+    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    side: const BorderSide(color: Color(0xFF00C853), width: 1.5),
+  );
+
+  static final ButtonStyle _darDolgu = FilledButton.styleFrom(
+    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 10),
+    textStyle: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500),
+    visualDensity: VisualDensity.compact,
+    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    side: const BorderSide(color: Color(0xFF00C853), width: 1.5),
+  );
+
   static final ButtonStyle _kompaktDolgu = FilledButton.styleFrom(
     padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 10),
     textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
@@ -318,14 +334,15 @@ class _HaftalikNobetEkraniState extends State<HaftalikNobetEkrani> {
     // Personel (izleyici) görünümünde yalnızca "Önizleme" var — PDF indirme
     // aylık ekrandaki gibi yetkisiz, Liste Yap/Kaydet ise düzenleme aracı
     // olduğu için hiç gösterilmez.
-    final butonlar = Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      children: [
+    // Telefonda düğmeler tek satırda, aralarındaki boşluk ve iç dolgu
+    // küçültülmüş; yine de sığmazsa satır yatay kayar.
+    final dar = !widget.genis;
+    final cerceve = dar ? _darCerceve : _kompaktCerceve;
+    final dolgu = dar ? _darDolgu : _kompaktDolgu;
+    final ogeler = <Widget>[
         if (!d.personelGorunumu)
           FilledButton.icon(
-            style: _kompaktDolgu,
+            style: dolgu,
             onPressed: _kirliAylar.isEmpty ? null : () => _kaydet(d),
             icon: const Icon(Icons.save_outlined, size: 16),
             label: Text(_kirliAylar.isEmpty ? 'Kaydet' : 'Kaydet *'),
@@ -334,7 +351,7 @@ class _HaftalikNobetEkraniState extends State<HaftalikNobetEkrani> {
           Tooltip(
             message: 'PDF indirme yetkiniz yok.',
             child: OutlinedButton.icon(
-              style: _kompaktCerceve,
+              style: cerceve,
               onPressed: null,
               icon: const Icon(Icons.picture_as_pdf_outlined, size: 16),
               label: const Text('PDF İndir'),
@@ -342,13 +359,13 @@ class _HaftalikNobetEkraniState extends State<HaftalikNobetEkrani> {
           )
         else
           OutlinedButton.icon(
-            style: _kompaktCerceve,
+            style: cerceve,
             onPressed: () => _pdfHaftalik(d),
             icon: const Icon(Icons.picture_as_pdf_outlined, size: 16),
             label: const Text('PDF İndir'),
           ),
         OutlinedButton.icon(
-          style: _kompaktCerceve,
+          style: cerceve,
           onPressed: () => _onizlemeGoster(d),
           icon: const Icon(Icons.visibility_outlined, size: 16),
           label: const Text('Önizle'),
@@ -368,7 +385,7 @@ class _HaftalikNobetEkraniState extends State<HaftalikNobetEkrani> {
           )
         else
           OutlinedButton.icon(
-            style: _kompaktCerceve,
+            style: cerceve,
             onPressed: _kirliAylar.isEmpty
                 ? null
                 : () {
@@ -378,8 +395,25 @@ class _HaftalikNobetEkraniState extends State<HaftalikNobetEkrani> {
             icon: const Icon(Icons.undo, size: 16),
             label: const Text('Geri Al'),
           ),
-      ],
-    );
+    ];
+    final butonlar = dar
+        ? SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                for (var i = 0; i < ogeler.length; i++) ...[
+                  if (i > 0) const SizedBox(width: 4),
+                  ogeler[i],
+                ],
+              ],
+            ),
+          )
+        : Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: ogeler,
+          );
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),

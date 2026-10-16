@@ -1827,14 +1827,35 @@ class _YillikYayinDurumuState extends State<_YillikYayinDurumu> {
                 );
               }
               final durum = snap.data ?? List.filled(12, false);
-              return Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: [
-                  for (var i = 0; i < 12; i++)
-                    _ayKutu(context, ayAdlari[i], i + 1, durum[i]),
-                ],
-              );
+              return LayoutBuilder(builder: (context, k) {
+                // Telefonda 12 ay, 6'şarlı iki sıra olarak tüm genişliğe yayılır
+                // (kutular daha küçük, aralarındaki boşluk 4 dp).
+                if (k.maxWidth < 500) {
+                  Widget sira(int bas) => Row(
+                        children: [
+                          for (var i = bas; i < bas + 6; i++) ...[
+                            if (i > bas) const SizedBox(width: 4),
+                            Expanded(
+                              child: _ayKutu(
+                                  context, ayAdlari[i], i + 1, durum[i],
+                                  dar: true),
+                            ),
+                          ],
+                        ],
+                      );
+                  return Column(
+                    children: [sira(0), const SizedBox(height: 4), sira(6)],
+                  );
+                }
+                return Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    for (var i = 0; i < 12; i++)
+                      _ayKutu(context, ayAdlari[i], i + 1, durum[i]),
+                  ],
+                );
+              });
             },
           ),
         ],
@@ -1842,12 +1863,13 @@ class _YillikYayinDurumuState extends State<_YillikYayinDurumu> {
     );
   }
 
-  Widget _ayKutu(BuildContext ctx, String ad, int ay, bool yayinda) {
+  Widget _ayKutu(BuildContext ctx, String ad, int ay, bool yayinda,
+      {bool dar = false}) {
     final aktif = ay == widget.d.ay && widget.yil == widget.d.yil;
     final renk = yayinda ? R.yesil : R.gri;
     return Container(
-      width: 58,
-      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+      width: dar ? null : 58,
+      padding: EdgeInsets.symmetric(vertical: dar ? 4 : 6, horizontal: 2),
       decoration: BoxDecoration(
         color: yayinda
             ? R.yesil.withValues(alpha: .12)
@@ -1863,14 +1885,14 @@ class _YillikYayinDurumuState extends State<_YillikYayinDurumu> {
         children: [
           Icon(
             yayinda ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-            size: 14,
+            size: dar ? 13 : 14,
             color: renk,
           ),
-          const SizedBox(height: 3),
+          SizedBox(height: dar ? 2 : 3),
           Text(ad,
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 11,
+                fontSize: dar ? 10.5 : 11,
                 fontWeight: aktif ? FontWeight.w700 : FontWeight.w500,
                 color: aktif ? R.mavi : null,
               )),

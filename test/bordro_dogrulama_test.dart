@@ -214,6 +214,10 @@ void main() {
     final ayar = KurumAyari();
 
     test('gece saati ve yol günü doğru sayılır', () {
+      // Boş KurumAyari hazır Türkiye tatil listesini kullanır (15 Temmuz dahil);
+      // bu test tatilsiz bir ay istediği için Temmuz'a denk gelmeyen tek bir
+      // tatil tanımlayıp varsayılan listeyi devre dışı bırakıyoruz.
+      final ayar = KurumAyari(resmiTatiller: {'01.01.2026'});
       final kayit = AyKaydi(yil: 2026, ay: 7); // 31 gün
       final sonraki = AyKaydi(yil: 2026, ay: 8);
 
@@ -241,8 +245,24 @@ void main() {
       // Yol: Temmuz 15-31 = 17 gün (hepsi dolu) + Ağustos 1-7 = 7 gün
       expect(girdi.yolGunu, 17 + 7);
       expect(girdi.doluGun, 31);
-      // Resmi tatil tanımlı değil → tatil çalışma günü yok
+      // Temmuz'da tanımlı resmi tatil yok → tatil çalışma günü yok
       expect(girdi.tatilGunu, 0);
+    });
+
+    test('tatil tanımlanmamışsa hazır listedeki 15 Temmuz tatil sayılır', () {
+      final kayit = AyKaydi(yil: 2026, ay: 7);
+      kayit.ata(15, 'p1', kGece12); // 15 Temmuz hazır listede resmi tatil
+
+      final girdi = nobettenGirdi(
+        ayar: KurumAyari(),
+        kayit: kayit,
+        oncekiAyKaydi: null,
+        sonrakiAyKaydi: null,
+        personelId: 'p1',
+        yil: 2026,
+        ay: 7,
+      );
+      expect(girdi.tatilGunu, 1);
     });
 
     test('izin kodları yol gününe sayılmaz', () {

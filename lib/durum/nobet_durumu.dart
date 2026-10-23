@@ -132,7 +132,14 @@ class NobetDurumu extends ChangeNotifier {
   // --- erişimciler ---
   Birim get birim => _birim;
   KurumAyari get ayar => _ayar;
-  List<Personel> get personeller => _personeller;
+  /// Seçili ayda görevde olan personel (göreve başlama/ayrılma tarihine göre).
+  /// Nöbet tabloları, özet ve kapsama hesabı bunu kullanır.
+  List<Personel> get personeller =>
+      _personeller.where((p) => p.ayAktifMi(_yil, _ay)).toList();
+
+  /// Aya bakılmaksızın tüm aktif personel — Personeller, Raporlar ve Bordro
+  /// ekranları (ücret tanımı, yıllık raporlar) bunu kullanır.
+  List<Personel> get tumPersoneller => _personeller;
   AyKaydi get kayit => _kayit;
   /// Aktif birime görünen duyurular (hedef == null veya == aktif birim).
   List<Duyuru> get duyurular =>
@@ -211,7 +218,7 @@ class NobetDurumu extends ChangeNotifier {
   KapsamaMotoru get motor {
     _motor ??= KapsamaMotoru(
       ayar: _ayar,
-      personeller: _personeller,
+      personeller: personeller,
       kayit: _kayit,
       gunSayisi: gunSayisi,
     );
@@ -225,7 +232,7 @@ class NobetDurumu extends ChangeNotifier {
   Madde3Motoru get madde3 {
     _madde3 ??= Madde3Motoru(
       ayar: _ayar,
-      personeller: _personeller,
+      personeller: personeller,
       kayit: _kayit,
       gunSayisi: gunSayisi,
       birim: _birim,
@@ -554,7 +561,7 @@ class NobetDurumu extends ChangeNotifier {
   void gunuTemizle(int gun) {
     if (!duzenleyebilir || yayinKilidi) return;
     _gecmiseYaz();
-    for (final p in _personeller) {
+    for (final p in personeller) {
       _kayit.ata(gun, p.id, '');
     }
     _kirli = true;
@@ -607,11 +614,11 @@ class NobetDurumu extends ChangeNotifier {
   /// Personel kaydında mesai işareti varsa o da geçerlidir.
   Set<String> _mesaiKisileri(AyKaydi kaynak, int gunSayisiKaynak) {
     final kume = <String>{
-      for (final p in _personeller)
+      for (final p in personeller)
         if (p.mesaiMi) p.id
     };
     for (var g = 1; g <= gunSayisiKaynak; g++) {
-      for (final p in _personeller) {
+      for (final p in personeller) {
         if (kaynak.kod(g, p.id) == kMesai) kume.add(p.id);
       }
     }
@@ -636,7 +643,7 @@ class NobetDurumu extends ChangeNotifier {
       final tarih = DateTime(_yil, _ay, gun);
       final kaynakGun = kaynakBaslangic + ((gun - ilkYazilanGun) % cekirdek);
 
-      for (final p in _personeller) {
+      for (final p in personeller) {
         if (mesailer.contains(p.id)) {
           _kayit.ata(gun, p.id, _mesaiKodu(tarih));
           continue;
@@ -669,7 +676,7 @@ class NobetDurumu extends ChangeNotifier {
 
     var doluHucre = 0;
     for (var g = 1; g <= n; g++) {
-      for (final p in _personeller) {
+      for (final p in personeller) {
         if (_kayit.kod(g, p.id).isNotEmpty) doluHucre++;
       }
     }
@@ -746,7 +753,7 @@ class NobetDurumu extends ChangeNotifier {
     final n = _ayar.dongUzunlugu;
     return [
       for (var g = 1; g <= n; g++)
-        {for (final p in _personeller) p.id: _kayit.kod(g, p.id)}
+        {for (final p in personeller) p.id: _kayit.kod(g, p.id)}
     ];
   }
 
@@ -880,10 +887,10 @@ class NobetDurumu extends ChangeNotifier {
   /// olmasıdır — aksi hâlde hiç dokunulmamış bir ay "tamamen dolu"
   /// görünürdü.
   int get doldurulanGun {
-    if (_personeller.isEmpty) return 0;
+    if (personeller.isEmpty) return 0;
     var s = 0;
     for (var g = 1; g <= gunSayisi; g++) {
-      final calisanVar = _personeller.any((p) {
+      final calisanVar = personeller.any((p) {
         final kod = _kayit.kod(g, p.id);
         return kod.isNotEmpty && _ayar.vardiyaBul(kod).calisiyor;
       });
@@ -900,7 +907,7 @@ class NobetDurumu extends ChangeNotifier {
   /// Ayın tamamı için personel bazlı bordro özeti
   List<PersonelOzeti> get ozetler {
     return [
-      for (final p in _personeller) ...[
+      for (final p in personeller) ...[
         () {
           final sayac = <String, int>{};
           var toplam = 0.0, gece = 0.0, normal = 0.0;
@@ -957,7 +964,7 @@ class NobetDurumu extends ChangeNotifier {
   /// göre) toplam yıllık izin kullanımı — HER ZAMAN "Onaylanan Liste"den
   /// okunur, hangi versiyon görüntüleniyor olursa olsun.
   Future<Map<String, int>> yillikIzinKullanimi() async {
-    final sonuc = <String, int>{for (final p in _personeller) p.id: 0};
+    final sonuc = <String, int>{for (final p in personeller) p.id: 0};
     final bugun = DateTime.now();
     if (_yil > bugun.year) return sonuc; // tamamı ileri tarihli
     final sonAy = _yil == bugun.year ? bugun.month : 12;
@@ -972,7 +979,7 @@ class NobetDurumu extends ChangeNotifier {
         continue;
       }
       final gunSayisiAy = DateTime(_yil, ay + 1, 0).day;
-      for (final p in _personeller) {
+      for (final p in personeller) {
         var toplam = sonuc[p.id] ?? 0;
         for (var g = 1; g <= gunSayisiAy; g++) {
           toplam += mh

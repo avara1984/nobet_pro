@@ -340,11 +340,31 @@ class Personel {
     this.sira = 0,
     this.yillikIzinKotasi = 30,
     this.dongBaslangici = 0,
+    this.gorevBaslangic,
+    this.gorevBitis,
   });
 
   final String id;
   String ad;
   String sicil;
+
+  /// Göreve başlama / ayrılma tarihi (isteğe bağlı). Boşsa kişi her ayın
+  /// listesinde görünür; dolu ise yalnızca görevde olduğu aylarda — böylece
+  /// sonradan gelen biri eski ayların, ayrılan biri sonraki ayların
+  /// listesine karışmaz. Tarih bileşeni (saat yok).
+  DateTime? gorevBaslangic;
+  DateTime? gorevBitis;
+
+  /// Kişi, verilen ayın herhangi bir gününde görevde mi?
+  bool ayAktifMi(int yil, int ay) {
+    final ayBasi = DateTime(yil, ay, 1);
+    final aySonu = DateTime(yil, ay + 1, 0);
+    final bas = gorevBaslangic;
+    final bit = gorevBitis;
+    if (bas != null && bas.isAfter(aySonu)) return false;
+    if (bit != null && bit.isBefore(ayBasi)) return false;
+    return true;
+  }
 
   /// T.C. Kimlik Numarası (11 hane). Boş bırakılabilir.
   String tcNo;
@@ -391,7 +411,20 @@ class Personel {
         sira: (m['sira'] ?? 0) as int,
         yillikIzinKotasi: (m['yillikIzinKotasi'] ?? 30) as int,
         dongBaslangici: (m['dongBaslangici'] ?? 0) as int,
+        gorevBaslangic: _tarihCoz(m['gorevBaslangic'] as String?),
+        gorevBitis: _tarihCoz(m['gorevBitis'] as String?),
       );
+
+  static DateTime? _tarihCoz(String? metin) {
+    if (metin == null || metin.isEmpty) return null;
+    final t = DateTime.tryParse(metin);
+    return t == null ? null : DateTime(t.year, t.month, t.day);
+  }
+
+  static String? _tarihYaz(DateTime? t) => t == null
+      ? null
+      : '${t.year}-${t.month.toString().padLeft(2, '0')}-'
+          '${t.day.toString().padLeft(2, '0')}';
 
   Map<String, dynamic> get haritasi => {
         'ad': ad,
@@ -402,6 +435,8 @@ class Personel {
         'sira': sira,
         'yillikIzinKotasi': yillikIzinKotasi,
         'dongBaslangici': dongBaslangici,
+        if (gorevBaslangic != null) 'gorevBaslangic': _tarihYaz(gorevBaslangic),
+        if (gorevBitis != null) 'gorevBitis': _tarihYaz(gorevBitis),
       };
 
   Personel kopya() => Personel(
@@ -413,7 +448,9 @@ class Personel {
       aktif: aktif,
       sira: sira,
       yillikIzinKotasi: yillikIzinKotasi,
-      dongBaslangici: dongBaslangici);
+      dongBaslangici: dongBaslangici,
+      gorevBaslangic: gorevBaslangic,
+      gorevBitis: gorevBitis);
 }
 
 // -----------------------------------------------------------------------------

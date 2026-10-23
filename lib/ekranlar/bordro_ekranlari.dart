@@ -304,7 +304,7 @@ class _BordroHesaplaEkraniState extends State<BordroHesaplaEkrani> {
     }
 
     Personel? personel;
-    for (final p in d.personeller) {
+    for (final p in d.tumPersoneller) {
       if (p.id == _personelId) personel = p;
     }
     if (personel == null) {
@@ -406,7 +406,7 @@ class _BordroHesaplaEkraniState extends State<BordroHesaplaEkrani> {
         contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       ),
       items: [
-        for (final p in d.personeller)
+        for (final p in d.tumPersoneller)
           DropdownMenuItem(
             value: p.id,
             child: Row(
@@ -1148,7 +1148,7 @@ class _PersonelUcretleriEkraniState extends State<PersonelUcretleriEkrani> {
     final d = context.watch<NobetDurumu>();
     if (!d.bordroYetkisi) return _yetkiYok();
 
-    final eksik = d.personeller
+    final eksik = d.tumPersoneller
         .where((p) => (_ucretler[p.id]?.gunlukUcret ?? 0) <= 0)
         .length;
 
@@ -1189,16 +1189,16 @@ class _PersonelUcretleriEkraniState extends State<PersonelUcretleriEkrani> {
           Expanded(
             child: _mesgul
                 ? const Center(child: CircularProgressIndicator())
-                : d.personeller.isEmpty
+                : d.tumPersoneller.isEmpty
                     ? _bosDurum(
                         'Kayıtlı personel yok',
                         'Önce Personeller bölümünden personel ekleyin.',
                         Icons.groups_outlined)
                     : ListView.separated(
-                        itemCount: d.personeller.length,
+                        itemCount: d.tumPersoneller.length,
                         separatorBuilder: (_, __) => const SizedBox(height: 4),
                         itemBuilder: (ctx, i) {
-                          final p = d.personeller[i];
+                          final p = d.tumPersoneller[i];
                           final u = _ucretler[p.id];
                           final tanimli = (u?.gunlukUcret ?? 0) > 0;
                           return Card(
@@ -1681,7 +1681,7 @@ class _BordroRaporlariEkraniState extends State<BordroRaporlariEkrani> {
                           border: OutlineInputBorder(),
                           isDense: true),
                       items: [
-                        for (final p in d.personeller)
+                        for (final p in d.tumPersoneller)
                           DropdownMenuItem(
                               value: p.id,
                               child:

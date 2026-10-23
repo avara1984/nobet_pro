@@ -116,6 +116,15 @@ tanımaz. Bu tek yönlü bağımlılığı koru.
   Rol bazlı yetki kontrolleri burada merkezi: `duzenleyebilir`, `yonetebilir`,
   `bordroYetkisi`, `kilitli` (yayın kilidi + onay kilidi), `personelGorunumu`.
 
+- **Personel listesi aya göre süzülür:** `Personel.gorevBaslangic` /
+  `gorevBitis` (isteğe bağlı) doluysa kişi yalnızca görevde olduğu aylarda
+  görünür (`Personel.ayAktifMi`). `NobetDurumu.personeller` **seçili ayın**
+  listesidir (nöbet tabloları, özet, kapsama, PDF); `tumPersoneller` aya
+  bakmaksızın tüm aktif personeldir — **Personeller, Raporlar ve Bordro
+  ekranları bunu kullanır** (ücret tanımı ve yıllık raporlar aydan bağımsız).
+  Yeni bir ekran eklerken hangisinin gerektiğini seç; tarihleri boş
+  personel her ikisinde de görünür (eski kayıtlar etkilenmez).
+
 ### Yönetici profilleri (`YoneticiProfili`)
 
 Eski uygulamanın "Admin Yönetimi" ekranındaki üç admin rolünün karşılığı.

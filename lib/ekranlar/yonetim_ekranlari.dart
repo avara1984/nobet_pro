@@ -46,17 +46,17 @@ class PersonellerEkrani extends StatelessWidget {
                 label: const Text('Toplu Ekle'),
               ),
               const Spacer(),
-              Text('${d.personeller.length} kayıt',
+              Text('${d.tumPersoneller.length} kayıt',
                   style: const TextStyle(color: R.gri, fontSize: 12.5)),
             ],
           ),
           const SizedBox(height: 14),
           Expanded(
             child: ReorderableListView.builder(
-              itemCount: d.personeller.length,
+              itemCount: d.tumPersoneller.length,
               onReorder: (eski, yeni) async {
                 if (yeni > eski) yeni -= 1;
-                final liste = List.of(d.personeller);
+                final liste = List.of(d.tumPersoneller);
                 final p = liste.removeAt(eski);
                 liste.insert(yeni, p);
                 for (var i = 0; i < liste.length; i++) {
@@ -65,7 +65,7 @@ class PersonellerEkrani extends StatelessWidget {
                 }
               },
               itemBuilder: (ctx, i) {
-                final p = d.personeller[i];
+                final p = d.tumPersoneller[i];
                 return Card(
                   key: ValueKey(p.id),
                   elevation: 0,
@@ -97,6 +97,12 @@ class PersonellerEkrani extends StatelessWidget {
                         'Yıllık İzin: ${p.yillikIzinKotasi} gün',
                         if (p.tcNo.isNotEmpty) 'TC: ${p.tcMaskeli}',
                         if (p.sicil.isNotEmpty) 'Sicil: ${p.sicil}',
+                        if (p.gorevBaslangic != null)
+                          'Başlama: ${T.tarih(p.gorevBaslangic!)}',
+                        if (p.gorevBitis != null)
+                          'Ayrılış: ${T.tarih(p.gorevBitis!)}',
+                        if (!p.ayAktifMi(d.yil, d.ay))
+                          '${T.ayYil(d.yil, d.ay)} listesinde görünmez',
                       ].join(' · '),
                       style: const TextStyle(fontSize: 12),
                     ),
@@ -177,7 +183,7 @@ class PersonellerEkrani extends StatelessWidget {
         .toList();
     if (satirlar.isEmpty) return;
 
-    var sira = d.personeller.length;
+    var sira = d.tumPersoneller.length;
     var eklenen = 0;
     for (final satir in satirlar) {
       var ad = satir;
@@ -188,7 +194,7 @@ class PersonellerEkrani extends StatelessWidget {
         ad = ad.substring(0, ad.length - 3).trim();
       }
       if (ad.isEmpty) continue;
-      if (d.personeller.any((p) => p.ad.toLowerCase() == ad.toLowerCase())) {
+      if (d.tumPersoneller.any((p) => p.ad.toLowerCase() == ad.toLowerCase())) {
         continue;
       }
       await d.personelKaydet(Personel(
@@ -229,6 +235,41 @@ class PersonellerEkrani extends StatelessWidget {
     if (onay == true) await d.personelSil(p.id);
   }
 
+  /// Tarih seçici alan: dokununca takvim açılır, çarpı ile temizlenir.
+  Widget _tarihAlani(BuildContext ctx, String etiket, DateTime? deger,
+      void Function(DateTime?) ata) {
+    return InkWell(
+      onTap: () async {
+        final secilen = await showDatePicker(
+          context: ctx,
+          initialDate: deger ?? DateTime.now(),
+          firstDate: DateTime(2020),
+          lastDate: DateTime(2100),
+          helpText: etiket,
+        );
+        if (secilen != null) {
+          ata(DateTime(secilen.year, secilen.month, secilen.day));
+        }
+      },
+      child: InputDecorator(
+        decoration: InputDecoration(
+          labelText: etiket,
+          suffixIcon: deger == null
+              ? const Icon(Icons.calendar_today_outlined, size: 18)
+              : IconButton(
+                  tooltip: 'Temizle',
+                  icon: const Icon(Icons.close, size: 18),
+                  onPressed: () => ata(null),
+                ),
+        ),
+        child: Text(
+          deger == null ? 'Belirtilmedi' : T.tarih(deger),
+          style: TextStyle(color: deger == null ? R.gri : null),
+        ),
+      ),
+    );
+  }
+
   Future<void> _duzenle(
       BuildContext context, NobetDurumu d, Personel? mevcut) async {
     final ad = TextEditingController(text: mevcut?.ad ?? '');
@@ -237,11 +278,14 @@ class PersonellerEkrani extends StatelessWidget {
     final kota =
         TextEditingController(text: '${mevcut?.yillikIzinKotasi ?? 30}');
     var mesai = mevcut?.mesaiMi ?? false;
+    var baslangic = mevcut?.gorevBaslangic;
+    var bitis = mevcut?.gorevBitis;
 
     await showDialog<void>(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, yenile) => AlertDialog(
+          scrollable: true,
           title: Text(mevcut == null ? 'Personel ekle' : 'Personeli düzenle'),
           content: SizedBox(
             width: 400,
@@ -279,6 +323,20 @@ class PersonellerEkrani extends StatelessWidget {
                     helperText: 'Kıdeme göre genelde 20 veya 30',
                   ),
                 ),
+                const SizedBox(height: 12),
+                _tarihAlani(ctx, 'Göreve başlama tarihi (isteğe bağlı)',
+                    baslangic, (t) => yenile(() => baslangic = t)),
+                const SizedBox(height: 12),
+                _tarihAlani(ctx, 'Ayrılış tarihi (isteğe bağlı)', bitis,
+                    (t) => yenile(() => bitis = t)),
+                const Padding(
+                  padding: EdgeInsets.only(top: 4, left: 2),
+                  child: Text(
+                    'Boş bırakılırsa kişi her ayın listesinde görünür. Tarih '
+                    'doluysa yalnızca görevde olduğu aylarda görünür.',
+                    style: TextStyle(fontSize: 11.5, color: R.gri, height: 1.35),
+                  ),
+                ),
                 const SizedBox(height: 4),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
@@ -312,17 +370,29 @@ class PersonellerEkrani extends StatelessWidget {
                   );
                   return;
                 }
+                if (baslangic != null &&
+                    bitis != null &&
+                    bitis!.isBefore(baslangic!)) {
+                  ScaffoldMessenger.of(ctx).showSnackBar(
+                    const SnackBar(
+                        content: Text(
+                            'Ayrılış tarihi göreve başlama tarihinden önce olamaz.')),
+                  );
+                  return;
+                }
                 final p = mevcut ??
                     Personel(
                       id: 'p${DateTime.now().microsecondsSinceEpoch}',
                       ad: '',
-                      sira: d.personeller.length,
+                      sira: d.tumPersoneller.length,
                     );
                 p.ad = ad.text.trim();
                 p.sicil = sicil.text.trim();
                 p.tcNo = tcTemiz;
                 p.yillikIzinKotasi = int.tryParse(kota.text.trim()) ?? 30;
                 p.gorev = mesai ? GorevTipi.mesai : GorevTipi.nobetci;
+                p.gorevBaslangic = baslangic;
+                p.gorevBitis = bitis;
                 d.personelKaydet(p);
                 Navigator.pop(ctx);
               },
@@ -2621,7 +2691,7 @@ class YedeklemeEkrani extends StatelessWidget {
                 'birim': d.birim.name,
                 'kurum': d.ayar.haritasi,
                 'personeller':
-                    d.personeller.map((p) => p.haritasi).toList(),
+                    d.tumPersoneller.map((p) => p.haritasi).toList(),
                 'donem': d.kayit.haritasi,
               });
               await Clipboard.setData(ClipboardData(text: json));
@@ -2798,14 +2868,14 @@ class _RaporlarEkraniState extends State<RaporlarEkrani> {
       NobetDurumu d, int yil) async {
     final simdi = DateTime.now();
     final sonAy = yil == simdi.year ? simdi.month : (yil < simdi.year ? 12 : 0);
-    final sonuc = <String, double>{for (final p in d.personeller) p.id: 0.0};
+    final sonuc = <String, double>{for (final p in d.tumPersoneller) p.id: 0.0};
     if (sonAy == 0) return sonuc;
 
     AyKaydi? oncekiAyKayit;
     for (var ay = 1; ay <= sonAy; ay++) {
       final kayit = await d.servis
           .ayKaydiGetir(d.birimId, yil, ay, versiyon: kVersiyonOnayli);
-      for (final p in d.personeller) {
+      for (final p in d.tumPersoneller) {
         sonuc[p.id] = (sonuc[p.id] ?? 0) +
             mh.aylikFazlaMesaiGunu(
               ayar: d.ayar,
@@ -2823,7 +2893,7 @@ class _RaporlarEkraniState extends State<RaporlarEkrani> {
 
   Future<Map<String, List<double>>> _hesapla(NobetDurumu d, int yil) async {
     final sonuc = <String, List<double>>{
-      for (final p in d.personeller) p.id: List.filled(12, 0),
+      for (final p in d.tumPersoneller) p.id: List.filled(12, 0),
     };
     final simdi = DateTime.now();
     final sonAy = yil == simdi.year ? simdi.month : (yil < simdi.year ? 12 : 0);
@@ -2831,7 +2901,7 @@ class _RaporlarEkraniState extends State<RaporlarEkrani> {
       final kayit = await d.servis
           .ayKaydiGetir(d.birimId, yil, ay, versiyon: kVersiyonOnayli);
       final gun = DateTime(yil, ay + 1, 0).day;
-      for (final p in d.personeller) {
+      for (final p in d.tumPersoneller) {
         var saat = 0.0;
         for (var g = 1; g <= gun; g++) {
           saat += d.ayar.vardiyaBul(kayit.kod(g, p.id)).saat;
@@ -2936,7 +3006,7 @@ class _RaporlarEkraniState extends State<RaporlarEkrani> {
                       const DataColumn(label: Text('Toplam'), numeric: true),
                     ],
                     rows: [
-                      for (final p in d.personeller)
+                      for (final p in d.tumPersoneller)
                         DataRow(cells: [
                           DataCell(Text(p.ad,
                               style: const TextStyle(
@@ -3002,7 +3072,7 @@ class _RaporlarEkraniState extends State<RaporlarEkrani> {
                 ? 1.0
                 : (veri.values.reduce((a, b) => a > b ? a : b)).clamp(1, 1e9);
 
-            if (d.personeller.isEmpty) {
+            if (d.tumPersoneller.isEmpty) {
               return const Text('Kayıtlı personel yok.',
                   style: TextStyle(color: R.gri));
             }
@@ -3017,7 +3087,7 @@ class _RaporlarEkraniState extends State<RaporlarEkrani> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  for (final p in d.personeller)
+                  for (final p in d.tumPersoneller)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 14),
                       child: Row(

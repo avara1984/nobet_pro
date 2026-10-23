@@ -21,6 +21,18 @@ abstract class VeriServisi {
   Future<void> duyuruKaydet(String kurumId, Duyuru duyuru);
   Future<void> duyuruSil(String kurumId, String duyuruId);
 
+  /// Bir kullanıcının duyuruları ne zaman gördüğü (duyuruId → zaman).
+  /// Her kullanıcı yalnızca kendi kaydını yazar — eşzamanlı yazma çakışması
+  /// olmasın diye kayıtlar kullanıcı başına ayrı tutulur.
+  Future<Map<String, DateTime>> duyuruOkumalariniGetir(
+      String kurumId, String uid);
+  Future<void> duyuruOkumalariniKaydet(
+      String kurumId, String uid, Map<String, DateTime> okumalar);
+
+  /// Tüm kullanıcıların duyuru okumaları: uid → (duyuruId → zaman).
+  Future<Map<String, Map<String, DateTime>>> tumDuyuruOkumalari(
+      String kurumId);
+
   Future<List<Kullanici>> kullanicilariGetir(String kurumId);
   Future<void> kullaniciRolGuncelle(String uid, Rol rol);
   Future<void> kullaniciKaydet(String kurumId, Kullanici kullanici);
@@ -166,6 +178,23 @@ class BellekServis implements VeriServisi {
   Future<void> duyuruSil(String kurumId, String duyuruId) async =>
       _duyurular.removeWhere((d) => d.id == duyuruId);
 
+  final Map<String, Map<String, DateTime>> _duyuruOkumalari = {};
+
+  @override
+  Future<Map<String, DateTime>> duyuruOkumalariniGetir(
+          String kurumId, String uid) async =>
+      Map.of(_duyuruOkumalari[uid] ?? const {});
+
+  @override
+  Future<void> duyuruOkumalariniKaydet(
+          String kurumId, String uid, Map<String, DateTime> okumalar) async =>
+      _duyuruOkumalari[uid] = Map.of(okumalar);
+
+  @override
+  Future<Map<String, Map<String, DateTime>>> tumDuyuruOkumalari(
+          String kurumId) async =>
+      {for (final e in _duyuruOkumalari.entries) e.key: Map.of(e.value)};
+
   @override
   Future<List<Kullanici>> kullanicilariGetir(String kurumId) async => [
         Kullanici(
@@ -293,3 +322,18 @@ int _bordroSirala(BordroSonucu a, BordroSonucu b) {
   if (ayFarki != 0) return ayFarki;
   return a.personelAd.compareTo(b.personelAd);
 }
+
+/// Depodaki okuma kaydını (`{duyuruId: ISO zaman}`) çözer.
+Map<String, DateTime> duyuruOkumaCoz(Object? ham) {
+  final sonuc = <String, DateTime>{};
+  if (ham is Map) {
+    for (final e in ham.entries) {
+      final zaman = DateTime.tryParse('${e.value}');
+      if (zaman != null) sonuc['${e.key}'] = zaman;
+    }
+  }
+  return sonuc;
+}
+
+Map<String, String> duyuruOkumaYaz(Map<String, DateTime> okumalar) =>
+    {for (final e in okumalar.entries) e.key: e.value.toIso8601String()};

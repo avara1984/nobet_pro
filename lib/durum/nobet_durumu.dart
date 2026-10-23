@@ -11,6 +11,31 @@ import '../modeller/modeller.dart';
 import '../servisler/veri_servisi.dart';
 
 // -----------------------------------------------------------------------------
+// DUYURU OKUMA BİLGİSİ
+// -----------------------------------------------------------------------------
+/// Yöneticinin "kim okudu" görünümü için ham veri.
+class DuyuruOkumaBilgisi {
+  DuyuruOkumaBilgisi(this.kullanicilar, this.okumalar);
+
+  final List<Kullanici> kullanicilar;
+
+  /// uid → (duyuruId → görüldüğü zaman)
+  final Map<String, Map<String, DateTime>> okumalar;
+
+  /// Duyuruyu görmesi beklenen kullanıcılar: onaylı, aktif, Duyurular
+  /// ekranına girebilen (sadece-PDF olmayan) ve hedef birim kısıtına uyan.
+  List<Kullanici> hedefKitle(Duyuru d) => kullanicilar
+      .where((k) =>
+          k.aktif &&
+          k.onayli &&
+          !k.sadecePdf &&
+          (d.hedef == null || k.kisitliBirim == null || k.kisitliBirim == d.hedef))
+      .toList();
+
+  DateTime? okumaZamani(Kullanici k, Duyuru d) => okumalar[k.uid]?[d.id];
+}
+
+// -----------------------------------------------------------------------------
 // OTURUM
 // -----------------------------------------------------------------------------
 class OturumDurumu extends ChangeNotifier {
@@ -304,6 +329,34 @@ class NobetDurumu extends ChangeNotifier {
     await tercihler.setString(
         _duyuruTercihAnahtari(uid), _sonGorulenDuyuruZamani!.toIso8601String());
     notifyListeners();
+    await _duyuruOkumaIsaretle();
+  }
+
+  /// Duyurular ekranının gösterdiği tüm duyuruları bu kullanıcı adına
+  /// "görüldü" yazar (daha önce yazılmış olanların zamanı korunur). Yönetici
+  /// "kim okudu" ekranını bununla besler; hata olursa sessiz geçilir.
+  Future<void> _duyuruOkumaIsaretle() async {
+    try {
+      final mevcut = await servis.duyuruOkumalariniGetir(kurumId, uid);
+      final simdi = DateTime.now();
+      var degisti = false;
+      for (final dy in _duyurular) {
+        if (!mevcut.containsKey(dy.id)) {
+          mevcut[dy.id] = simdi;
+          degisti = true;
+        }
+      }
+      if (degisti) await servis.duyuruOkumalariniKaydet(kurumId, uid, mevcut);
+    } catch (_) {}
+  }
+
+  /// Yönetici için: kullanıcılar ve kimin hangi duyuruyu ne zaman gördüğü.
+  /// Çağıran kullanıcının kendi okuması da önce yazılır (ekranı açmış sayılır).
+  Future<DuyuruOkumaBilgisi> duyuruOkumaBilgisi() async {
+    await _duyuruOkumaIsaretle();
+    final kullanicilar = await servis.kullanicilariGetir(kurumId);
+    final okumalar = await servis.tumDuyuruOkumalari(kurumId);
+    return DuyuruOkumaBilgisi(kullanicilar, okumalar);
   }
 
   void _duyuruZamanlayiciBaslat() {

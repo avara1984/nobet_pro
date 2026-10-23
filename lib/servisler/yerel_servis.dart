@@ -205,6 +205,31 @@ class YerelServis implements VeriServisi, YedeklenebilirServis {
     await _duyurulariYaz(kurumId, liste);
   }
 
+  // --- DUYURU OKUMA ----------------------------------------------------------
+  String _duyuruOkumaAnahtari(String kurumId, String uid) =>
+      'duyuruokuma_${kurumId}_$uid';
+
+  @override
+  Future<Map<String, DateTime>> duyuruOkumalariniGetir(
+          String kurumId, String uid) async =>
+      duyuruOkumaCoz(_oku(_duyuruOkumaAnahtari(kurumId, uid)));
+
+  @override
+  Future<void> duyuruOkumalariniKaydet(
+          String kurumId, String uid, Map<String, DateTime> okumalar) =>
+      _yaz(_duyuruOkumaAnahtari(kurumId, uid), duyuruOkumaYaz(okumalar));
+
+  @override
+  Future<Map<String, Map<String, DateTime>>> tumDuyuruOkumalari(
+      String kurumId) async {
+    final onEk = 'duyuruokuma_${kurumId}_';
+    return {
+      for (final anahtar in _tercihler.getKeys())
+        if (anahtar.startsWith(onEk))
+          anahtar.substring(onEk.length): duyuruOkumaCoz(_oku(anahtar)),
+    };
+  }
+
   // --- KULLANICI -------------------------------------------------------------
   /// Diskten okur, seed etmez. Kaydet/sil bunu kullanır;
   /// böylece kullanicilariGetir ile karşılıklı çağrı oluşmaz.
@@ -412,6 +437,7 @@ class YerelServis implements VeriServisi, YedeklenebilirServis {
           anahtar.startsWith('personeller_') ||
           anahtar.startsWith('versiyonlar_') ||
           anahtar.startsWith('duyurular_') ||
+          anahtar.startsWith('duyuruokuma_') ||
           anahtar.startsWith('nobet_') ||
           anahtar.startsWith('bordro_') ||
           anahtar.startsWith('bordro_pdf_') ||

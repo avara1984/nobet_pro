@@ -409,13 +409,24 @@ class PersonellerEkrani extends StatelessWidget {
 // DUYURULAR
 // =============================================================================
 
-class DuyurularEkrani extends StatelessWidget {
+class DuyurularEkrani extends StatefulWidget {
   const DuyurularEkrani({super.key, required this.genis});
   final bool genis;
 
   @override
+  State<DuyurularEkrani> createState() => _DuyurularEkraniState();
+}
+
+class _DuyurularEkraniState extends State<DuyurularEkrani> {
+  /// Yalnızca yönetici için: kimin hangi duyuruyu gördüğü.
+  Future<DuyuruOkumaBilgisi>? _okuma;
+
+  bool get genis => widget.genis;
+
+  @override
   Widget build(BuildContext context) {
     final d = context.watch<NobetDurumu>();
+    if (d.yonetebilir && _okuma == null) _okuma = d.duyuruOkumaBilgisi();
     return Padding(
       padding: genis
           ? const EdgeInsets.fromLTRB(20, 6, 20, 20)
@@ -435,9 +446,23 @@ class DuyurularEkrani extends StatelessWidget {
                 ),
               ),
             ),
+          if (d.yonetebilir)
+            const Padding(
+              padding: EdgeInsets.only(top: 8),
+              child: Text(
+                'Okuyan sayısı, kullanıcıların Duyurular ekranını açtığı '
+                'andan itibaren kaydedilir; bu özellikten önceki duyurularda '
+                'eksik olabilir.',
+                style: TextStyle(fontSize: 11.5, color: R.gri, height: 1.35),
+              ),
+            ),
           const SizedBox(height: 14),
           Expanded(
-            child: d.tumDuyurular.isEmpty
+            child: FutureBuilder<DuyuruOkumaBilgisi>(
+              future: _okuma,
+              builder: (context, okumaAnlik) {
+                final okuma = okumaAnlik.data;
+                return d.tumDuyurular.isEmpty
                 ? const Center(
                     child: Text('Henüz duyuru yok.',
                         style: TextStyle(color: R.gri)))
@@ -481,6 +506,10 @@ class DuyurularEkrani extends StatelessWidget {
                                   ),
                                 ),
                               ),
+                              if (okuma != null) ...[
+                                const SizedBox(width: 6),
+                                _okumaRozeti(okuma, duyuru),
+                              ],
                             ],
                           ),
                           subtitle: Padding(
@@ -503,8 +532,108 @@ class DuyurularEkrani extends StatelessWidget {
                         ),
                       );
                     },
-                  ),
+                  );
+              },
+            ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _okumaRozeti(DuyuruOkumaBilgisi okuma, Duyuru duyuru) {
+    final kitle = okuma.hedefKitle(duyuru);
+    final okuyan =
+        kitle.where((k) => okuma.okumaZamani(k, duyuru) != null).length;
+    final hepsi = kitle.isNotEmpty && okuyan == kitle.length;
+    final renk = hepsi ? R.yesil : R.turuncu;
+    return InkWell(
+      borderRadius: BorderRadius.circular(20),
+      onTap: () => _okumaDetayi(okuma, duyuru, kitle),
+      child: Tooltip(
+        message: 'Kimlerin okuduğunu göster',
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+          decoration: BoxDecoration(
+            color: renk.withValues(alpha: .14),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Icon(hepsi ? Icons.done_all : Icons.visibility_outlined,
+                size: 12, color: renk),
+            const SizedBox(width: 4),
+            Text('Okuyan $okuyan/${kitle.length}',
+                style: TextStyle(
+                    fontSize: 10.5, fontWeight: FontWeight.w700, color: renk)),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  void _okumaDetayi(
+      DuyuruOkumaBilgisi okuma, Duyuru duyuru, List<Kullanici> kitle) {
+    final okuyanlar = [
+      for (final k in kitle)
+        if (okuma.okumaZamani(k, duyuru) != null) k
+    ]..sort((a, b) =>
+        okuma.okumaZamani(a, duyuru)!.compareTo(okuma.okumaZamani(b, duyuru)!));
+    final okumayanlar = [
+      for (final k in kitle)
+        if (okuma.okumaZamani(k, duyuru) == null) k
+    ];
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        scrollable: true,
+        title: Text(duyuru.baslik,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+        content: SizedBox(
+          width: 380,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Okuyanlar (${okuyanlar.length})',
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w700, color: R.yesil)),
+              const SizedBox(height: 6),
+              if (okuyanlar.isEmpty)
+                const Text('Henüz kimse okumadı.',
+                    style: TextStyle(color: R.gri, fontSize: 12.5))
+              else
+                for (final k in okuyanlar)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Row(children: [
+                      Expanded(
+                          child: Text(k.ad,
+                              style: const TextStyle(fontSize: 13))),
+                      Text(T.tarihSaat(okuma.okumaZamani(k, duyuru)!),
+                          style:
+                              const TextStyle(fontSize: 12, color: R.gri)),
+                    ]),
+                  ),
+              const SizedBox(height: 14),
+              Text('Henüz okumayanlar (${okumayanlar.length})',
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w700, color: R.turuncu)),
+              const SizedBox(height: 6),
+              if (okumayanlar.isEmpty)
+                const Text('Herkes okudu.',
+                    style: TextStyle(color: R.gri, fontSize: 12.5))
+              else
+                for (final k in okumayanlar)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Text(k.ad, style: const TextStyle(fontSize: 13)),
+                  ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('Kapat')),
         ],
       ),
     );

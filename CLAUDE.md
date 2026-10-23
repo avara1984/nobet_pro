@@ -248,6 +248,17 @@ yapabiliyor; salt cihaz bazlı bir işaret olsaydı biri okuyunca diğeri de
   ve Android'de FCM'den ön planda mesaj geldiğinde bu metodu çağırır;
   ikisi de aynı anda tetiklenirse `_duyuruYukleniyor` bayrağı çift
   yüklemeyi engeller.
+- **Kim okudu (yönetici):** Duyurular ekranı açıldığında
+  `NobetDurumu._duyuruOkumaIsaretle()` ekranın gösterdiği tüm duyuruları
+  o kullanıcı adına depoya yazar (`duyuruokuma_<kurumId>_<uid>` anahtarı,
+  `{duyuruId: ISO zaman}`; daha önce yazılanların zamanı korunur).
+  **Kullanıcı başına ayrı doküman** — herkes yalnızca kendi kaydını yazdığı
+  için eşzamanlı yazma çakışması olmaz. `VeriServisi.duyuruOkumalariniGetir/
+  Kaydet/tumDuyuruOkumalari` üç serviste de var; yeni önek yedek listelerine
+  (`tumVeriyiDisaAktar`) eklendi ve `duyurular_` önekiyle çakışmaz (Cloud
+  Function tetiklenmez). Süper Admin `DuyurularEkrani`nda her duyurunun
+  yanında "Okuyan X/Y" rozeti görür; `DuyuruOkumaBilgisi.hedefKitle`
+  paydayı belirler (onaylı, aktif, sadece-PDF olmayan, hedef birime uyan).
 - Rozet UI'ı `ana_ekran.dart`'taki `_UstBaslik` (her ekranda sabit üst
   çubuk) içinde — sol menüdeki "Duyurular" öğesinde ayrı bir rozet yok
   (bilinçli sadeleştirme).

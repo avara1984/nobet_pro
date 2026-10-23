@@ -237,6 +237,35 @@ class FirestoreServis implements VeriServisi, YedeklenebilirServis {
     await _duyurulariYaz(kurumId, liste);
   }
 
+  // --- DUYURU OKUMA ----------------------------------------------------------
+  String _duyuruOkumaAnahtari(String kurumId, String uid) =>
+      'duyuruokuma_${kurumId}_$uid';
+
+  @override
+  Future<Map<String, DateTime>> duyuruOkumalariniGetir(
+          String kurumId, String uid) async =>
+      duyuruOkumaCoz(await _oku(_duyuruOkumaAnahtari(kurumId, uid)));
+
+  @override
+  Future<void> duyuruOkumalariniKaydet(
+          String kurumId, String uid, Map<String, DateTime> okumalar) =>
+      _yaz(_duyuruOkumaAnahtari(kurumId, uid), duyuruOkumaYaz(okumalar));
+
+  @override
+  Future<Map<String, Map<String, DateTime>>> tumDuyuruOkumalari(
+      String kurumId) async {
+    final onEk = 'duyuruokuma_${kurumId}_';
+    final ham = await _onEkleOku(onEk);
+    final sonuc = <String, Map<String, DateTime>>{};
+    for (final e in ham.entries) {
+      try {
+        sonuc[e.key.substring(onEk.length)] =
+            duyuruOkumaCoz(jsonDecode(e.value));
+      } catch (_) {}
+    }
+    return sonuc;
+  }
+
   // --- KULLANICI -------------------------------------------------------------
   Future<List<Kullanici>> _kullanicilariOku(String kurumId) async =>
       (await _okuListe(_kullaniciAnahtari(kurumId)))
@@ -442,6 +471,7 @@ class FirestoreServis implements VeriServisi, YedeklenebilirServis {
       'personeller_',
       'versiyonlar_',
       'duyurular_',
+      'duyuruokuma_',
       'nobet_',
       'bordro_',
       'bordro_pdf_',

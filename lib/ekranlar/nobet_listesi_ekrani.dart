@@ -27,7 +27,7 @@ class _NobetListesiEkraniState extends State<NobetListesiEkrani> {
   static const double _tarihW = 85;
   static const double _gunW = 75;
   static const double _personelW = 90;
-  static const double _durumW = 58;
+  static const double _durumW = 34;
   static const double _ozetPanelMinW = 280;
 
   // Android'de Önizleme popup'ı için daraltılmış ölçüler — telefon
@@ -679,7 +679,7 @@ class _NobetListesiEkraniState extends State<NobetListesiEkrani> {
                           _baslikHucre('Günler', gunW, dar: dar),
                           for (final p in personeller)
                             _personelBaslikHucre(p, personelW, dar: dar),
-                          _baslikHucre('Durum', durumW, dar: dar),
+                          _durumBaslik(durumW, dar: dar),
                         ],
                       ),
                     ),
@@ -822,6 +822,21 @@ class _NobetListesiEkraniState extends State<NobetListesiEkrani> {
               Text(altMetin,
                   style: TextStyle(fontSize: dar ? 8 : 10, color: R.gri)),
           ],
+        ),
+      );
+
+  /// "Durum" sütununun başlığı: yer kaplayan yazı yerine yanıp sönen "!".
+  Widget _durumBaslik(double w, {bool dar = false}) => Container(
+        width: w,
+        height: dar ? _baslikYDar : _baslikY,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: _baslikZemini(context),
+          border: Border(right: BorderSide(color: _cizgi(context))),
+        ),
+        child: Tooltip(
+          message: 'Durum — satırdaki kapsama kontrolü',
+          child: _YanipSonenUnlem(boyut: dar ? 16 : 20),
         ),
       );
 
@@ -1962,5 +1977,38 @@ class _NobetListesiEkraniState extends State<NobetListesiEkrani> {
     } catch (e) {
       if (mounted) _bilgi('PDF oluşturulamadı: $e');
     }
+  }
+}
+
+/// Yavaşça yanıp sönen ünlem işareti (Durum sütunu başlığı).
+class _YanipSonenUnlem extends StatefulWidget {
+  const _YanipSonenUnlem({this.boyut = 20});
+  final double boyut;
+
+  @override
+  State<_YanipSonenUnlem> createState() => _YanipSonenUnlemState();
+}
+
+class _YanipSonenUnlemState extends State<_YanipSonenUnlem>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _kontrol = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 900),
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _kontrol.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: Tween<double>(begin: 1, end: .2).animate(
+          CurvedAnimation(parent: _kontrol, curve: Curves.easeInOut)),
+      child: Icon(Icons.priority_high_rounded,
+          size: widget.boyut, color: R.kirmizi),
+    );
   }
 }

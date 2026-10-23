@@ -154,13 +154,21 @@ class PdfServis {
       AyKaydi kayit,
       int gunSayisi,
       ) {
+    // Dikey A4'te sabit 510 pt genişlik var: 6'dan fazla personelde sütunlar
+    // daralır — yazı biraz küçülür, vardiya saati tireyle bitişik yazılır
+    // ("08:00-20:00") ve Tarih/Günler sütunları daha dar tutulur. Böylece
+    // hücreler iki satıra bölünmez, liste tek sayfada kalır.
+    final n = personeller.length;
+    final kompakt = n > 6;
+    final yaziBoyu = n <= 6 ? 8.0 : (n <= 8 ? 7.5 : 7.0);
+
     pw.Widget h(String metin) => pw.Padding(
       padding: const pw.EdgeInsets.symmetric(vertical: 3.5),
       child: pw.Center(
         child: pw.Text(metin,
             textAlign: pw.TextAlign.center,
-            style:
-            pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8)),
+            style: pw.TextStyle(
+                fontWeight: pw.FontWeight.bold, fontSize: yaziBoyu)),
       ),
     );
 
@@ -172,7 +180,7 @@ class PdfServis {
               metin,
               textAlign: pw.TextAlign.center,
               style: pw.TextStyle(
-                fontSize: 8,
+                fontSize: yaziBoyu,
                 color: renk ?? PdfColors.black,
                 fontWeight: kalin ? pw.FontWeight.bold : pw.FontWeight.normal,
               ),
@@ -181,8 +189,8 @@ class PdfServis {
         );
 
     final genislikler = <int, pw.TableColumnWidth>{
-      0: const pw.FixedColumnWidth(58),
-      1: const pw.FixedColumnWidth(50),
+      0: pw.FixedColumnWidth(kompakt ? 52 : 58),
+      1: pw.FixedColumnWidth(kompakt ? 44 : 50),
     };
     for (var i = 0; i < personeller.length; i++) {
       genislikler[i + 2] = const pw.FlexColumnWidth(1);
@@ -216,8 +224,9 @@ class PdfServis {
           // Boş hücre ekranda olduğu gibi çıktıda da N.İ. sayılır.
           ...personeller.map((p) {
             final kod = kayit.kod(g, p.id);
+            final metin = kod.isEmpty ? kNobetIzni : kod;
             return c(
-              kod.isEmpty ? kNobetIzni : kod,
+              kompakt ? metin.replaceAll(' - ', '-') : metin,
               renk: PdfColors.black,
               kalin: true,
             );

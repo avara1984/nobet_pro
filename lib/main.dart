@@ -12,11 +12,14 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'core/tema.dart';
+import 'durum/ekran_olcegi.dart';
 import 'durum/nobet_durumu.dart';
 import 'ekranlar/ana_ekran.dart';
 import 'ekranlar/giris_ekrani.dart';
@@ -103,11 +106,13 @@ class _NobetProAppState extends State<NobetProApp> {
   late bool _koyu;
   late final VeriServisi _servis;
   final _oturum = OturumDurumu();
+  late final EkranOlcegi _olcek;
   bool _hazir = false;
 
   @override
   void initState() {
     super.initState();
+    _olcek = EkranOlcegi(widget.tercihler);
     _koyu = widget.tercihler.getBool('koyuTema') ?? false;
     _servis = widget.servis;
     _sonKullaniciyiAc();
@@ -186,11 +191,16 @@ class _NobetProAppState extends State<NobetProApp> {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider.value(
-      value: _oturum,
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider.value(value: _oturum),
+        ChangeNotifierProvider.value(value: _olcek),
+      ],
       child: MaterialApp(
         title: 'Nöbet Sistemi',
         debugShowCheckedModeBanner: false,
+        scrollBehavior: _OlcekScrollDavranisi(),
+        builder: (context, child) => _OlcekKatmani(child: child!),
         // Tarih seçici gibi yerleşik Material widget'ları (Cancel/OK,
         // ay/gün adları) Türkçe görünsün diye.
         localizationsDelegates: const [
@@ -247,4 +257,80 @@ class _NobetProAppState extends State<NobetProApp> {
       ),
     );
   }
+}
+
+/// Tüm uygulamayı [EkranOlcegi] oranında büyütür/küçültür. Alt ağaç,
+/// gerçek boyutun oran kadar bölünmüş hâlinde yerleşir (ör. %80'de
+/// pencere 1,25 kat "geniş" görünür) ve ekrana sığacak şekilde ölçeklenir —
+/// tablolar bu sayede daha çok sütun gösterebilir. Ctrl + tekerlek ve
+/// Ctrl +/−/0 kısayolları da burada dinlenir.
+class _OlcekKatmani extends StatelessWidget {
+  const _OlcekKatmani({required this.child});
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final o = context.watch<EkranOlcegi>();
+    final s = o.deger;
+    var icerik = child;
+    if ((s - 1).abs() > 0.001) {
+      final mq = MediaQuery.of(context);
+      final boyut = mq.size / s;
+      icerik = FittedBox(
+        fit: BoxFit.fill,
+        alignment: Alignment.topLeft,
+        child: SizedBox(
+          width: boyut.width,
+          height: boyut.height,
+          child: MediaQuery(data: mq.copyWith(size: boyut), child: child),
+        ),
+      );
+    }
+    if (!EkranOlcegi.desteklenir) return icerik;
+
+    return CallbackShortcuts(
+      bindings: {
+        for (final k in [
+          LogicalKeyboardKey.equal,
+          LogicalKeyboardKey.add,
+          LogicalKeyboardKey.numpadAdd,
+        ])
+          SingleActivator(k, control: true): o.artir,
+        for (final k in [LogicalKeyboardKey.minus, LogicalKeyboardKey.numpadSubtract])
+          SingleActivator(k, control: true): o.azalt,
+        for (final k in [LogicalKeyboardKey.digit0, LogicalKeyboardKey.numpad0])
+          SingleActivator(k, control: true): o.sifirla,
+      },
+      child: Listener(
+        onPointerSignal: (e) {
+          if (e is PointerScrollEvent &&
+              HardwareKeyboard.instance.isControlPressed &&
+              e.scrollDelta.dy != 0) {
+            e.scrollDelta.dy < 0 ? o.artir() : o.azalt();
+          }
+        },
+        child: icerik,
+      ),
+    );
+  }
+}
+
+/// Ctrl basılıyken tekerlek sayfayı kaydırmasın (yakınlaştırmaya ayrılır).
+class _OlcekScrollDavranisi extends MaterialScrollBehavior {
+  @override
+  ScrollPhysics getScrollPhysics(BuildContext context) =>
+      _CtrlDuyarliFizik(parent: super.getScrollPhysics(context));
+}
+
+class _CtrlDuyarliFizik extends ScrollPhysics {
+  const _CtrlDuyarliFizik({super.parent});
+
+  @override
+  ScrollPhysics applyTo(ScrollPhysics? ancestor) =>
+      _CtrlDuyarliFizik(parent: buildParent(ancestor));
+
+  @override
+  bool shouldAcceptUserOffset(ScrollMetrics position) =>
+      !HardwareKeyboard.instance.isControlPressed &&
+      super.shouldAcceptUserOffset(position);
 }

@@ -27,6 +27,9 @@ class _NobetListesiEkraniState extends State<NobetListesiEkrani> {
   static const double _tarihW = 85;
   static const double _gunW = 75;
   static const double _personelW = 90;
+  // Otomatik sığdırmada personel sütununun inebileceği en dar genişlik;
+  // bunun altında tablo yatay kaydırmaya döner.
+  static const double _personelWMin = 70;
   static const double _durumW = 34;
   static const double _ozetPanelMinW = 280;
 
@@ -640,11 +643,9 @@ class _NobetListesiEkraniState extends State<NobetListesiEkrani> {
     final personeller = d.personeller;
     final tarihW = dar ? _tarihWDar : _tarihW;
     final gunW = dar ? _gunWDar : _gunW;
-    final personelW = dar ? _personelWDar : _personelW;
     final durumW = dar ? _durumWDar : _durumW;
     final baslikY = dar ? _baslikYDar : _baslikY;
     final satirY = dar ? _satirYDar : _satirY;
-    final kayanW = gunW + personeller.length * personelW + durumW;
     final bCtrl = baslikCtrl ?? _yatayBaslik;
     final gCtrl = govdeCtrl ?? _yatayGovde;
 
@@ -653,6 +654,54 @@ class _NobetListesiEkraniState extends State<NobetListesiEkrani> {
           'Personeller bölümünden personel ekleyerek başlayın.');
     }
 
+    // Otomatik sığdırma: personel sütunları, alan yetmiyorsa
+    // [_personelWMin]'e kadar daralır (yazılar da orantılı küçülür);
+    // bundan fazlası yatay kaydırmaya kalır.
+    return LayoutBuilder(builder: (context, kisit) {
+      var personelW = dar ? _personelWDar : _personelW;
+      if (!dar && kisit.maxWidth.isFinite) {
+        // -2: sol/sağ çerçeve çizgileri
+        final bosAlan = kisit.maxWidth - 2 - tarihW - gunW - durumW;
+        personelW = (bosAlan / personeller.length)
+            .clamp(_personelWMin, _personelW)
+            .toDouble();
+      }
+      final kayanW = gunW + personeller.length * personelW + durumW;
+      return _tabloGovdesi(
+        d,
+        personeller,
+        tarihW: tarihW,
+        gunW: gunW,
+        personelW: personelW,
+        durumW: durumW,
+        baslikY: baslikY,
+        satirY: satirY,
+        kayanW: kayanW,
+        bCtrl: bCtrl,
+        gCtrl: gCtrl,
+        saltOkunur: saltOkunur,
+        dar: dar,
+        altIcerik: altIcerik,
+      );
+    });
+  }
+
+  Widget _tabloGovdesi(
+    NobetDurumu d,
+    List<Personel> personeller, {
+    required double tarihW,
+    required double gunW,
+    required double personelW,
+    required double durumW,
+    required double baslikY,
+    required double satirY,
+    required double kayanW,
+    required ScrollController bCtrl,
+    required ScrollController gCtrl,
+    required bool saltOkunur,
+    required bool dar,
+    Widget? altIcerik,
+  }) {
     return Container(
       decoration: BoxDecoration(
         color: Tema.kart(context),
@@ -767,7 +816,8 @@ class _NobetListesiEkraniState extends State<NobetListesiEkrani> {
                                                 yarimGun: yarim,
                                                 bugunMu: bugunMu,
                                                 saltOkunur: saltOkunur,
-                                                dar: dar),
+                                                dar: dar,
+                                                genislik: personelW),
                                           _durumHucre(d, g,
                                               vurgu: haftaSonuMu,
                                               tatil: tatil,
@@ -849,10 +899,15 @@ class _NobetListesiEkraniState extends State<NobetListesiEkrani> {
     return (t.substring(0, i), t.substring(i + 1));
   }
 
+  /// Sütun, tam genişliğinden (90) darsa yazı/dolgu orantılı küçülür.
+  double _sutunOlcegi(double w) => (w / _personelW).clamp(.78, 1.0).toDouble();
+
   Widget _personelBaslikHucre(Personel p, double w, {bool dar = false}) {
     final (ad, soyad) = _adSoyadAyir(p.ad);
     final stil = TextStyle(
-        fontSize: dar ? 9.5 : 11.5, fontWeight: FontWeight.w700, height: 1.1);
+        fontSize: dar ? 9.5 : 11.5 * _sutunOlcegi(w),
+        fontWeight: FontWeight.w700,
+        height: 1.1);
     return Container(
       width: w,
       height: dar ? _baslikYDar : _baslikY,
@@ -968,22 +1023,27 @@ class _NobetListesiEkraniState extends State<NobetListesiEkrani> {
       bool yarimGun = false,
       bool bugunMu = false,
       bool saltOkunur = false,
-      bool dar = false}) {
+      bool dar = false,
+      double? genislik}) {
     final kod = d.kod(gun, p.id);
+    final sutunW = dar ? _personelWDar : (genislik ?? _personelW);
+    final olcek = dar ? 1.0 : _sutunOlcegi(sutunW);
     final duzenlenebilir = !saltOkunur && d.duzenleyebilir;
 
     // Boş hücre "N.İ." (nöbet izni) sayılır — yeni ay bu sayede baştan
     // N.İ. dolu görünür, kullanıcı üzerine vardiya seçerek çalışır.
-    final gorunen = kod.isEmpty ? kNobetIzni : d.ayar.vardiyaBul(kod).etiket;
+    final etiket = kod.isEmpty ? kNobetIzni : d.ayar.vardiyaBul(kod).etiket;
+    // Daralan sütunda "08:00 - 20:00" sığsın diye boşluklar atılır.
+    final gorunen = olcek < .95 ? etiket.replaceAll(' - ', '-') : etiket;
     final koyu = Theme.of(context).brightness == Brightness.dark;
     final boya = vardiyaBoyasi(kod.isEmpty ? kNobetIzni : kod, koyu: koyu);
-    final yaziBoyu = dar ? 9.5 : 11.5;
+    final yaziBoyu = dar ? 9.5 : 11.5 * olcek;
 
     return InkWell(
       onTap: duzenlenebilir ? () => _vardiyaSec(d, gun, p) : null,
       onLongPress: duzenlenebilir ? () => d.kodAta(gun, p.id, '') : null,
       child: Container(
-        width: dar ? _personelWDar : _personelW,
+        width: sutunW,
         height: dar ? _satirYDar : _satirY,
         alignment: Alignment.center,
         decoration: BoxDecoration(
@@ -997,7 +1057,7 @@ class _NobetListesiEkraniState extends State<NobetListesiEkrani> {
         child: boya.rozet
             ? Container(
                 padding: EdgeInsets.symmetric(
-                    horizontal: dar ? 5 : 7, vertical: dar ? 2 : 3.5),
+                    horizontal: dar ? 5 : 7 * olcek, vertical: dar ? 2 : 3.5),
                 decoration: BoxDecoration(
                   color: boya.zemin,
                   borderRadius: BorderRadius.circular(20),

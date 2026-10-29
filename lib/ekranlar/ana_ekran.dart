@@ -7,6 +7,7 @@ import '../core/kapsama_motoru.dart';
 import '../core/mesai_hesap.dart' as mh;
 import '../core/tarih.dart';
 import '../core/tema.dart';
+import '../durum/ekran_olcegi.dart';
 import '../durum/nobet_durumu.dart';
 import '../modeller/modeller.dart';
 import 'aylik_ozet_ekrani.dart';
@@ -592,6 +593,52 @@ class _YanMenu extends StatelessWidget {
 // -----------------------------------------------------------------------------
 // ÜST BAŞLIK
 // -----------------------------------------------------------------------------
+/// Üst çubuktaki yakınlaştırma kontrolü: [−] %100 [+]. Orana tıklamak
+/// %100'e döndürür. Ctrl + fare tekerleği ve Ctrl +/−/0 kısayolları da
+/// aynı değeri değiştirir (bkz. main.dart).
+class _OlcekDugmesi extends StatelessWidget {
+  const _OlcekDugmesi();
+
+  @override
+  Widget build(BuildContext context) {
+    final o = context.watch<EkranOlcegi>();
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton(
+          tooltip: 'Uzaklaştır (Ctrl −)',
+          visualDensity: VisualDensity.compact,
+          iconSize: 20,
+          onPressed: o.deger > EkranOlcegi.enAz + .001 ? o.azalt : null,
+          icon: const Icon(Icons.remove_circle_outline),
+        ),
+        Tooltip(
+          message: 'Ekran boyutu — %100\'e dönmek için tıklayın (Ctrl 0)',
+          child: InkWell(
+            borderRadius: BorderRadius.circular(6),
+            onTap: o.varsayilan ? null : o.sifirla,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+              child: Text('%${o.yuzde}',
+                  style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      color: o.varsayilan ? R.gri : R.mavi)),
+            ),
+          ),
+        ),
+        IconButton(
+          tooltip: 'Yakınlaştır (Ctrl +)',
+          visualDensity: VisualDensity.compact,
+          iconSize: 20,
+          onPressed: o.deger < EkranOlcegi.enCok - .001 ? o.artir : null,
+          icon: const Icon(Icons.add_circle_outline),
+        ),
+      ],
+    );
+  }
+}
+
 class _UstBaslik extends StatelessWidget {
   const _UstBaslik({
     required this.genis,
@@ -778,6 +825,10 @@ class _UstBaslik extends StatelessWidget {
                 const SizedBox(width: 8),
                 donemGrubu,
                 duyuruDugmesi,
+                if (EkranOlcegi.desteklenir) ...[
+                  const SizedBox(width: 4),
+                  const _OlcekDugmesi(),
+                ],
                 const SizedBox(width: 4),
                 IconButton(
                   tooltip: koyuTema ? 'Açık tema' : 'Koyu tema',

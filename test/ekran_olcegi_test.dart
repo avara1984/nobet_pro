@@ -13,12 +13,12 @@ void main() {
     expect(o.yuzde, 100);
     expect(o.varsayilan, isTrue);
     o.azalt();
-    expect(o.yuzde, 90);
-    for (var i = 0; i < 20; i++) {
+    expect(o.yuzde, 99);
+    for (var i = 0; i < 100; i++) {
       o.azalt();
     }
     expect(o.yuzde, 60);
-    for (var i = 0; i < 20; i++) {
+    for (var i = 0; i < 100; i++) {
       o.artir();
     }
     expect(o.yuzde, 130);

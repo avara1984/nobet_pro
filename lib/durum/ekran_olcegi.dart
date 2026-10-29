@@ -13,7 +13,7 @@ class EkranOlcegi extends ChangeNotifier {
   static const _anahtar = 'ekran_olcegi';
   static const double enAz = 0.6;
   static const double enCok = 1.3;
-  static const double adim = 0.1;
+  static const double adim = 0.01;
 
   final SharedPreferences _tercihler;
   double _deger = 1.0;

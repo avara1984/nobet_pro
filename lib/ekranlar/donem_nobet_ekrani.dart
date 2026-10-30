@@ -41,7 +41,7 @@ class _DonemNobetEkraniState extends State<DonemNobetEkrani> {
   static const double _baslikY = 37;
   static const double _tarihW = 85;
   static const double _gunW = 75;
-  static const double _personelW = 90;
+  static const double _personelW = 85;
   static const double _durumW = 58;
 
   /// Ekran içindeki sekmeyle seçilen versiyon — üst çubuktaki versiyon
@@ -849,7 +849,7 @@ class _DonemNobetEkraniState extends State<DonemNobetEkrani> {
         child: boya.rozet
             ? Container(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 7, vertical: 3.5),
+                    const EdgeInsets.symmetric(horizontal: 5, vertical: 2.5),
                 decoration: BoxDecoration(
                   color: boya.zemin,
                   borderRadius: BorderRadius.circular(20),

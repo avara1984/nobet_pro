@@ -26,10 +26,10 @@ class _NobetListesiEkraniState extends State<NobetListesiEkrani> {
   static const double _baslikY = 37;
   static const double _tarihW = 85;
   static const double _gunW = 75;
-  static const double _personelW = 90;
+  static const double _personelW = 85;
   // Otomatik sığdırmada personel sütununun inebileceği en dar genişlik;
   // bunun altında tablo yatay kaydırmaya döner.
-  static const double _personelWMin = 70;
+  static const double _personelWMin = 64;
   static const double _durumW = 34;
   static const double _ozetPanelMinW = 280;
 
@@ -899,8 +899,8 @@ class _NobetListesiEkraniState extends State<NobetListesiEkrani> {
     return (t.substring(0, i), t.substring(i + 1));
   }
 
-  /// Sütun, tam genişliğinden (90) darsa yazı/dolgu orantılı küçülür.
-  double _sutunOlcegi(double w) => (w / _personelW).clamp(.78, 1.0).toDouble();
+  /// Sütun, tam genişliğinden (85) darsa yazı/dolgu orantılı küçülür.
+  double _sutunOlcegi(double w) => (w / _personelW).clamp(.75, 1.0).toDouble();
 
   Widget _personelBaslikHucre(Personel p, double w, {bool dar = false}) {
     final (ad, soyad) = _adSoyadAyir(p.ad);
@@ -1057,7 +1057,7 @@ class _NobetListesiEkraniState extends State<NobetListesiEkrani> {
         child: boya.rozet
             ? Container(
                 padding: EdgeInsets.symmetric(
-                    horizontal: dar ? 5 : 7 * olcek, vertical: dar ? 2 : 3.5),
+                    horizontal: dar ? 5 : 5 * olcek, vertical: dar ? 2 : 2.5),
                 decoration: BoxDecoration(
                   color: boya.zemin,
                   borderRadius: BorderRadius.circular(20),

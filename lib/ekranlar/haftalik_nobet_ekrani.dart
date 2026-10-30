@@ -825,7 +825,7 @@ class _HaftalikNobetEkraniState extends State<HaftalikNobetEkrani> {
           child: boya.rozet
               ? Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 5, vertical: 2.5),
+                      horizontal: 4, vertical: 2.5),
                   decoration: BoxDecoration(
                     color: boya.zemin,
                     borderRadius: BorderRadius.circular(20),

@@ -24,13 +24,13 @@ class _NobetListesiEkraniState extends State<NobetListesiEkrani> {
 
   static const double _satirY = 27;
   static const double _baslikY = 37;
-  static const double _tarihW = 85;
-  static const double _gunW = 75;
+  static const double _tarihW = 83;
+  static const double _gunW = 73;
   static const double _personelW = 85;
   // Otomatik sığdırmada personel sütununun inebileceği en dar genişlik;
   // bunun altında tablo yatay kaydırmaya döner.
   static const double _personelWMin = 64;
-  static const double _durumW = 34;
+  static const double _durumW = 33;
   static const double _ozetPanelMinW = 280;
 
   // Android'de Önizleme popup'ı için daraltılmış ölçüler — telefon
@@ -1057,7 +1057,7 @@ class _NobetListesiEkraniState extends State<NobetListesiEkrani> {
         child: boya.rozet
             ? Container(
                 padding: EdgeInsets.symmetric(
-                    horizontal: dar ? 5 : 5 * olcek, vertical: dar ? 2 : 2.5),
+                    horizontal: dar ? 5 : 4 * olcek, vertical: dar ? 2 : 2.5),
                 decoration: BoxDecoration(
                   color: boya.zemin,
                   borderRadius: BorderRadius.circular(20),

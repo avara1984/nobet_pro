@@ -849,7 +849,7 @@ class _DonemNobetEkraniState extends State<DonemNobetEkrani> {
         child: boya.rozet
             ? Container(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 5, vertical: 2.5),
+                    const EdgeInsets.symmetric(horizontal: 4, vertical: 2.5),
                 decoration: BoxDecoration(
                   color: boya.zemin,
                   borderRadius: BorderRadius.circular(20),

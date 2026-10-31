@@ -40,9 +40,7 @@ service cloud.firestore {
     }
 
     // Belge kimliği sınıfları (kimlik düzeni: lib/servisler/yerel_servis.dart).
-    function bordroBelgesi(b) {
-      return b.matches('(bordro|ucretler)_.*');
-    }
+    // (bordro_* / ucretler_* belgeleri nobet_bordro koleksiyonundadır.)
     function genelBelge(b) {
       return b.matches('(kurum|personeller|duyurular|nobet|versiyonlar|duyuruokuma)_.*');
     }
@@ -67,38 +65,34 @@ service cloud.firestore {
     match /nobet_pro/{belge} {
       // Tek belge okuma: belge kimliğine göre.
       allow get: if girisli() && (
-        (bordroBelgesi(belge) && bordroYetkili())
-        || (genelBelge(belge) && (
+        (genelBelge(belge) && (
               belge.matches('duyuruokuma_.*')
                 ? (yonetici() || kendiOkumasi(belge))
                 : (!birimli(belge) || birimIzinli(belge))))
         // kullanicilar_*, yedekler ve bilinmeyen her şey: yalnızca yönetici
-        || (!bordroBelgesi(belge) && !genelBelge(belge) && yonetici()));
+        || (!genelBelge(belge) && yonetici()));
 
       // Toplu sorgu (belge kimliği ÖNEKİYLE tarama): Firestore, toplu sorguda
       // belge kimliğine bakan kuralı (matches) kanıtlayamaz ve sorguyu baştan
       // reddeder; bu yüzden izin kimliğe değil yetkiye bağlanır. Uygulamadaki
-      // toplu sorgular: bordro ve bordro PDF listesi (bordro yetkilisi),
-      // yedek dışa aktarma ve duyuru okuma bilgisi (yönetici).
-      // BİLİNEN ÖDÜN: bordro yetkilisi (Bordro Admini dahil) elle hazırlanmış
-      // bir sorguyla koleksiyonun TAMAMINI (kullanicilar_ dahil) listeleyebilir;
-      // tek tek okumada bu kapalıdır. Kalıcı çözüm: bordro belgelerini ayrı bir
-      // koleksiyona taşıyıp izni koleksiyon düzeyinde vermek.
-      allow list: if girisli() && (bordroYetkili()
-          || (yonetici() && request.auth.token.sadecePdf != true));
+      // toplu sorgular: yedek dışa aktarma ve duyuru okuma bilgisi (yönetici).
+      // (Bordro listeleri nobet_bordro'dadır; orada koleksiyon düzeyinde izin
+      // olduğu için bu kuralı gerektirmez.)
+      allow list: if yonetici() && request.auth.token.sadecePdf != true;
 
       allow write: if girisli() && (
-        (bordroBelgesi(belge) && bordroYetkili())
-        || (belge.matches('(kurum|personeller|duyurular)_.*') && yonetici()
+        (belge.matches('(kurum|personeller|duyurular)_.*') && yonetici()
               && (!birimli(belge) || birimIzinli(belge)))
         || (belge.matches('(nobet|versiyonlar)_.*') && duzenleyici() && birimIzinli(belge))
         || (belge.matches('duyuruokuma_.*') && kendiOkumasi(belge))
-        || (!bordroBelgesi(belge) && !genelBelge(belge) && yonetici()));
+        || (!genelBelge(belge) && yonetici()));
     }
 
     // Bordro ve ücret belgeleri ayrı koleksiyonda: izin koleksiyon düzeyindedir,
     // bu yüzden toplu sorgular (liste, yedek) belge kimliğine bakmadan güvenle
-    // yapılabilir ve nobet_pro'daki toplu sorgu izni gerekmez.
+    // yapılabilir. Bordro yetkisi olmayan (ör. Temizlik Nöbet Admini) hiçbir
+    // bordro belgesini okuyamaz/listeleyemez; bordro yetkilisi ise nobet_pro'yu
+    // (kullanıcılar dahil) listeleyemez.
     match /nobet_bordro/{belge} {
       allow read, write: if bordroYetkili();
     }

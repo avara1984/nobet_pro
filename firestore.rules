@@ -57,7 +57,8 @@ service cloud.firestore {
 
     // --- bu uygulama ---------------------------------------------------------
     match /nobet_pro/{belge} {
-      allow read: if girisli() && (
+      // Tek belge okuma: belge kimliğine göre.
+      allow get: if girisli() && (
         (bordroBelgesi(belge) && bordroYetkili())
         || (genelBelge(belge) && (
               belge.matches('duyuruokuma_.*')
@@ -65,6 +66,18 @@ service cloud.firestore {
                 : (!birimli(belge) || birimIzinli(belge))))
         // kullanicilar_*, yedekler ve bilinmeyen her şey: yalnızca yönetici
         || (!bordroBelgesi(belge) && !genelBelge(belge) && yonetici()));
+
+      // Toplu sorgu (belge kimliği ÖNEKİYLE tarama): Firestore, toplu sorguda
+      // belge kimliğine bakan kuralı (matches) kanıtlayamaz ve sorguyu baştan
+      // reddeder; bu yüzden izin kimliğe değil yetkiye bağlanır. Uygulamadaki
+      // toplu sorgular: bordro ve bordro PDF listesi (bordro yetkilisi),
+      // yedek dışa aktarma ve duyuru okuma bilgisi (yönetici).
+      // BİLİNEN ÖDÜN: bordro yetkilisi (Bordro Admini dahil) elle hazırlanmış
+      // bir sorguyla koleksiyonun TAMAMINI (kullanicilar_ dahil) listeleyebilir;
+      // tek tek okumada bu kapalıdır. Kalıcı çözüm: bordro belgelerini ayrı bir
+      // koleksiyona taşıyıp izni koleksiyon düzeyinde vermek.
+      allow list: if girisli() && (bordroYetkili()
+          || (yonetici() && request.auth.token.sadecePdf != true));
 
       allow write: if girisli() && (
         (bordroBelgesi(belge) && bordroYetkili())

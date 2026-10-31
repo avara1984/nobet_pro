@@ -9,7 +9,7 @@ import '../core/tarih.dart';
 import '../core/tema.dart';
 import '../durum/nobet_durumu.dart';
 import '../modeller/modeller.dart';
-import '../servisler/giris_servisi.dart';
+import 'nobet_ortak.dart';
 import '../servisler/pdf_servis.dart';
 import 'yayin_uyarisi.dart';
 
@@ -34,7 +34,8 @@ class DonemNobetEkrani extends StatefulWidget {
   State<DonemNobetEkrani> createState() => _DonemNobetEkraniState();
 }
 
-class _DonemNobetEkraniState extends State<DonemNobetEkrani> {
+class _DonemNobetEkraniState extends State<DonemNobetEkrani>
+    with NobetEkraniOrtak<DonemNobetEkrani> {
   final _yatayBaslik = ScrollController();
   final _yatayGovde = ScrollController();
   // Toplam satırı (altta sabit) — gövdeyle yatayda senkron kayar.
@@ -91,9 +92,6 @@ class _DonemNobetEkraniState extends State<DonemNobetEkrani> {
     super.dispose();
   }
 
-  void _bilgi(String m) => ScaffoldMessenger.of(context)
-    ..hideCurrentSnackBar()
-    ..showSnackBar(SnackBar(content: Text(m), width: 380));
 
   Future<void> _yukleGerekirse(NobetDurumu d) async {
     if (_yuklenenYil == d.yil &&
@@ -416,7 +414,7 @@ class _DonemNobetEkraniState extends State<DonemNobetEkrani> {
             onPressed: _geriAlinabilir && d.duzenleyebilir
                 ? () {
                     _geriAl();
-                    _bilgi('İşlem geri alındı.');
+                    bilgi('İşlem geri alındı.');
                   }
                 : null,
             icon: const Icon(Icons.undo, size: 16),
@@ -510,7 +508,7 @@ class _DonemNobetEkraniState extends State<DonemNobetEkrani> {
       decoration: BoxDecoration(
         color: Tema.kart(context),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _cizgi(context)),
+        border: Border.all(color: nobetCizgi(context)),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
@@ -519,7 +517,7 @@ class _DonemNobetEkraniState extends State<DonemNobetEkrani> {
             height: _baslikY,
             child: Row(
               children: [
-                _baslikHucre('Tarih', _tarihW),
+                nobetBaslikHucre(context, 'Tarih', _tarihW),
                 Expanded(
                   child: SingleChildScrollView(
                     controller: bCtrl,
@@ -529,10 +527,10 @@ class _DonemNobetEkraniState extends State<DonemNobetEkrani> {
                       width: kayanW,
                       child: Row(
                         children: [
-                          _baslikHucre('Günler', _gunW),
+                          nobetBaslikHucre(context, 'Günler', _gunW),
                           for (final p in personeller)
-                            _personelBaslikHucre(p, _personelW),
-                          _baslikHucre('Durum', _durumW,
+                            nobetPersonelBaslikHucre(context, p, _personelW),
+                          nobetBaslikHucre(context, 'Durum', _durumW,
                               kenarRengi: Colors.black),
                         ],
                       ),
@@ -542,7 +540,7 @@ class _DonemNobetEkraniState extends State<DonemNobetEkrani> {
               ],
             ),
           ),
-          Divider(height: 1, thickness: 1.5, color: _cizgi(context)),
+          Divider(height: 1, thickness: 1.5, color: nobetCizgi(context)),
           Expanded(
             child: SingleChildScrollView(
               child: Row(
@@ -594,12 +592,6 @@ class _DonemNobetEkraniState extends State<DonemNobetEkrani> {
     );
   }
 
-  /// Tablo iç çizgileri — belirgin, sabit kontrastlı (Tema.kenar bu yoğun
-  /// ızgarada neredeyse görünmüyordu).
-  Color _cizgi(BuildContext c) {
-    final koyu = Theme.of(c).brightness == Brightness.dark;
-    return koyu ? Colors.white30 : const Color(0xFFB9C0CC);
-  }
 
   /// Dönemin iki ayı arasındaki sınır (14→15 geçişi) kalın kırmızı bir
   /// çizgiyle vurgulanır — Haftalık Nöbet'teki hafta sınırıyla aynı dil.
@@ -663,7 +655,7 @@ class _DonemNobetEkraniState extends State<DonemNobetEkrani> {
         decoration: BoxDecoration(
           color: R.mavi.withValues(alpha: .14),
           border: Border(
-            right: BorderSide(color: _cizgi(context)),
+            right: BorderSide(color: nobetCizgi(context)),
             top: BorderSide(color: _ayGecisSiniri(context), width: 2),
           ),
         ),
@@ -687,7 +679,7 @@ class _DonemNobetEkraniState extends State<DonemNobetEkrani> {
             alignment: Alignment.centerRight,
             padding: const EdgeInsets.only(right: 8),
             decoration: BoxDecoration(
-              border: Border(right: BorderSide(color: _cizgi(context))),
+              border: Border(right: BorderSide(color: nobetCizgi(context))),
             ),
             child: const Text('Toplam',
                 style: TextStyle(
@@ -700,7 +692,7 @@ class _DonemNobetEkraniState extends State<DonemNobetEkrani> {
               width: _personelW,
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                border: Border(right: BorderSide(color: _cizgi(context))),
+                border: Border(right: BorderSide(color: nobetCizgi(context))),
               ),
               child: Text(
                 _kisiToplamSaat(d, p.id).toStringAsFixed(1),
@@ -721,70 +713,9 @@ class _DonemNobetEkraniState extends State<DonemNobetEkrani> {
     );
   }
 
-  Widget _baslikHucre(String metin, double w, {Color? kenarRengi}) => Container(
-        width: w,
-        height: _baslikY,
-        alignment: Alignment.center,
-        padding: const EdgeInsets.symmetric(horizontal: 6),
-        decoration: BoxDecoration(
-          color: Tema.nobetTabloBaslik(context),
-          border:
-              Border(right: BorderSide(color: kenarRengi ?? _cizgi(context))),
-        ),
-        child: Text(metin,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700)),
-      );
 
-  (String, String) _adSoyadAyir(String tamAd) {
-    final t = tamAd.trim();
-    final i = t.lastIndexOf(' ');
-    if (i == -1) return (t, '');
-    return (t.substring(0, i), t.substring(i + 1));
-  }
 
-  Widget _personelBaslikHucre(Personel p, double w) {
-    final (ad, soyad) = _adSoyadAyir(p.ad);
-    const stil =
-        TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, height: 1.1);
-    return Container(
-      width: w,
-      height: _baslikY,
-      alignment: Alignment.center,
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      decoration: BoxDecoration(
-        color: Tema.nobetTabloBaslik(context),
-        border: Border(right: BorderSide(color: _cizgi(context))),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(ad, maxLines: 1, overflow: TextOverflow.ellipsis, style: stil),
-          if (soyad.isNotEmpty)
-            Text(soyad,
-                maxLines: 1, overflow: TextOverflow.ellipsis, style: stil),
-        ],
-      ),
-    );
-  }
 
-  Color? _satirZemini(bool vurgu, {bool tatil = false, bool yarimGun = false}) {
-    final koyu = Theme.of(context).brightness == Brightness.dark;
-    if (tatil) {
-      return koyu ? R.kirmizi.withValues(alpha: .16) : const Color(0xFFFDE7E7);
-    }
-    if (yarimGun) {
-      return koyu ? R.turuncu.withValues(alpha: .15) : const Color(0xFFFFF2DC);
-    }
-    if (vurgu) {
-      return koyu
-          ? Colors.white.withValues(alpha: .06)
-          : const Color(0xFFE9EBF0);
-    }
-    return null;
-  }
 
   Widget _metinHucre(String metin, double w,
       {bool kalin = false,
@@ -804,10 +735,10 @@ class _DonemNobetEkraniState extends State<DonemNobetEkrani> {
       height: _satirY,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: _satirZemini(vurgu, tatil: tatil, yarimGun: yarimGun),
+        color: nobetSatirZemini(context, vurgu, tatil: tatil, yarimGun: yarimGun),
         border: Border(
-          right: BorderSide(color: _cizgi(context)),
-          bottom: BorderSide(color: _cizgi(context)),
+          right: BorderSide(color: nobetCizgi(context)),
+          bottom: BorderSide(color: nobetCizgi(context)),
           top: ayGecisi
               ? BorderSide(color: _ayGecisSiniri(context), width: 2)
               : BorderSide.none,
@@ -855,10 +786,10 @@ class _DonemNobetEkraniState extends State<DonemNobetEkrani> {
         height: _satirY,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: _satirZemini(vurgu, tatil: tatil, yarimGun: yarimGun),
+          color: nobetSatirZemini(context, vurgu, tatil: tatil, yarimGun: yarimGun),
           border: Border(
-            right: BorderSide(color: _cizgi(context)),
-            bottom: BorderSide(color: _cizgi(context)),
+            right: BorderSide(color: nobetCizgi(context)),
+            bottom: BorderSide(color: nobetCizgi(context)),
             top: ayGecisi
                 ? BorderSide(color: _ayGecisSiniri(context), width: 2)
                 : BorderSide.none,
@@ -914,10 +845,10 @@ class _DonemNobetEkraniState extends State<DonemNobetEkrani> {
       height: _satirY,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: _satirZemini(vurgu, tatil: tatil, yarimGun: yarimGun),
+        color: nobetSatirZemini(context, vurgu, tatil: tatil, yarimGun: yarimGun),
         border: Border(
           right: const BorderSide(color: Colors.black, width: 1),
-          bottom: BorderSide(color: _cizgi(context)),
+          bottom: BorderSide(color: nobetCizgi(context)),
           top: ayGecisi
               ? BorderSide(color: _ayGecisSiniri(context), width: 2)
               : BorderSide.none,
@@ -944,14 +875,14 @@ class _DonemNobetEkraniState extends State<DonemNobetEkrani> {
     final kayit = _kayitIcin(tarih);
     if (kayit == null) return;
     if (kayit.yayinda) {
-      _bilgi('Bu ayın listesi YAYINDA olduğu için değişiklik yapılamaz.');
+      bilgi('Bu ayın listesi YAYINDA olduğu için değişiklik yapılamaz.');
       return;
     }
     // Ekran hangi versiyonda çalışıyorsa (üst çubuktaki seçiciden bağımsız)
     // PIN kontrolü ona göre yapılır.
     if (_versiyon == kVersiyonOnayli &&
         !d.onaylananListeAcikMi &&
-        !await _kilidiAc(d)) {
+        !await kilidiAc(d)) {
       return;
     }
     if (!mounted) return;
@@ -1003,7 +934,7 @@ class _DonemNobetEkraniState extends State<DonemNobetEkrani> {
                       final tatilGunu = tarih.weekday == DateTime.sunday ||
                           d.ayar.resmiTatilMi(tarih);
                       if (tatilGunu && mounted) {
-                        await _tatilYIUyarisi(v.kod);
+                        await tatilYIUyarisi(v.kod);
                         if (!mounted) return;
                       }
                     }
@@ -1020,7 +951,7 @@ class _DonemNobetEkraniState extends State<DonemNobetEkrani> {
                       setState(() {});
                       return;
                     }
-                    final devam = await _ihlalOnayi(uyari);
+                    final devam = await ihlalOnayi(uyari);
                     if (devam == true) {
                       _oncekiHaliniKaydet(tarih);
                       kayit.ata(tarih.day, p.id, v.kod);
@@ -1050,104 +981,8 @@ class _DonemNobetEkraniState extends State<DonemNobetEkrani> {
     );
   }
 
-  Future<bool> _kilidiAc(NobetDurumu d) async {
-    final c = TextEditingController();
-    final girilen = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        icon: const Icon(Icons.lock_outline, color: R.turuncu, size: 30),
-        title: const Text('Onaylanan Liste'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Bu liste PIN korumalıdır. Değişiklik yapmak için 4 haneli '
-              'kodu girin.',
-              textAlign: TextAlign.center,
-              style: TextStyle(height: 1.5, fontSize: 13),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: c,
-              autofocus: true,
-              obscureText: true,
-              keyboardType: TextInputType.number,
-              maxLength: 4,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 24, letterSpacing: 10),
-              decoration: const InputDecoration(counterText: ''),
-              onSubmitted: (v) => Navigator.pop(ctx, v),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx), child: const Text('Vazgeç')),
-          FilledButton(
-              onPressed: () => Navigator.pop(ctx, c.text),
-              child: const Text('Aç')),
-        ],
-      ),
-    );
 
-    if (girilen == null) return false;
-    try {
-      if (await d.onayKoduDogruMu(girilen)) {
-        d.kilidiAc();
-        return true;
-      }
-    } on GirisHatasi catch (e) {
-      // Çok fazla yanlış deneme veya sunucuya ulaşılamadı.
-      if (mounted) _bilgi(e.mesaj);
-      return false;
-    }
-    if (mounted) _bilgi('Şifre yanlış, tekrar deneyin.');
-    return false;
-  }
 
-  Future<void> _tatilYIUyarisi(String kod) {
-    final izinAdi = kod == kYillikIzin ? 'YILLIK İZİN' : 'İDARİ İZİN';
-    final kisaAd = kod == kYillikIzin ? 'Y.İ.' : 'İ.İ.';
-    return showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        icon: const Icon(Icons.info_outline, color: R.kirmizi, size: 30),
-        title: Text('RESMİ TATİLLERDE $izinAdi SAYILMAZ'),
-        content: Text(
-          'Bu gün Pazar veya resmi tatil olduğu için $kisaAd olarak '
-          'işaretlense bile ${kod == kYillikIzin ? 'yıllık izin hakkından' : 'çalışma saatinden'} '
-          'düşülmez — zaten tatil günüdür. Kayıt yine de yapılacaktır.',
-          style: const TextStyle(height: 1.5),
-        ),
-        actions: [
-          FilledButton(
-              onPressed: () => Navigator.pop(ctx), child: const Text('Tamam')),
-        ],
-      ),
-    );
-  }
-
-  Future<bool?> _ihlalOnayi(String mesaj) {
-    return showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        icon:
-            const Icon(Icons.warning_amber_rounded, color: R.kirmizi, size: 32),
-        title: const Text('DİKKAT: NÖBET İHLALİ'),
-        content: Text(mesaj, style: const TextStyle(height: 1.5)),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Vazgeç')),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: FilledButton.styleFrom(backgroundColor: R.kirmizi),
-            child: const Text('Yine de yaz (riskli)'),
-          ),
-        ],
-      ),
-    );
-  }
 
   Future<void> _kaydet(NobetDurumu d) async {
     if (_kirliAylar.isEmpty) return;
@@ -1171,7 +1006,7 @@ class _DonemNobetEkraniState extends State<DonemNobetEkrani> {
     }
     if (!mounted) return;
     setState(() => _yukleniyor = false);
-    _bilgi('15 - 14 Nöbet listesi kaydedildi.');
+    bilgi('15 - 14 Nöbet listesi kaydedildi.');
   }
 
   /// Ekranın kendi (henüz kaydedilmemiş olabilecek) `_kayitlar` haritasından
@@ -1198,7 +1033,7 @@ class _DonemNobetEkraniState extends State<DonemNobetEkrani> {
         toplamSaatBul: (personelId) => _kisiToplamSaat(d, personelId),
       );
     } catch (e) {
-      if (mounted) _bilgi('PDF oluşturulamadı: $e');
+      if (mounted) bilgi('PDF oluşturulamadı: $e');
     }
   }
 

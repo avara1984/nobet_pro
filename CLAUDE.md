@@ -217,7 +217,12 @@ asıl nöbet tablosu; `haftalik_nobet_ekrani.dart` hem Haftalık Nöbet hem (`do
 Haftalık 15-14 ekranıdır — aralık `core/donem_haftalik.dart`'tan gelir (15'ini
 içeren haftanın Pazartesi'sinden 14'ünü içeren haftanın Pazar'ına), hafta
 toplamları tam haftayı, en alttaki 15-14 toplamı yalnızca dönem günlerini
-sayar; `aylik_ozet_ekrani.dart` bordro özeti + kapsama denetimi
+sayar; `nobet_ortak.dart` üç nöbet ekranının (liste, haftalık, 15-14) ORTAK parçalarını
+taşır (`NobetEkraniOrtak` mixin'i: bilgi/PIN kilidi/ihlal ve tatil diyalogları;
+başlık hücreleri, çizgi rengi, ad-soyad ayırma). Yalnızca ekranlar arasında
+birebir aynı olan kod buraya konur — Nöbet Listesi'nin satır zemini ve başlık
+hücresi bilerek farklıdır ("bugün" vurgusu, `dar` mod), birleştirme;
+`aylik_ozet_ekrani.dart` bordro özeti + kapsama denetimi
 görünümü; `yonetim_ekranlari.dart` tek dosyada birden fazla ekranı barındırır
 (Personeller, Duyurular, Ayarlar, Kullanıcılar, Yedekleme, Raporlar) — yeni bir
 yönetim ekranı eklerken bu dosyanın mevcut bölüm düzenini (`// ====` ayraçlarıyla)

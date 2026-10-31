@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 
 import '../core/tarih.dart';
 import '../modeller/bordro_modelleri.dart';
@@ -18,10 +19,23 @@ import 'veri_servisi.dart';
 ///  - eski uygulamanın aynı Firebase projesindeki koleksiyonlarıyla
 ///    (shifts, personnel, admins …) hiçbir çakışma olmaz.
 class FirestoreServis implements VeriServisi, YedeklenebilirServis {
-  FirestoreServis({FirebaseFirestore? veritabani})
-      : _db = veritabani ?? FirebaseFirestore.instance;
+  /// [islemKullan]: liste güncellemelerinde Firestore transaction'ı kullanılsın
+  /// mı? Verilmezse platforma göre seçilir (bkz. [_islemDestekli]).
+  FirestoreServis({FirebaseFirestore? veritabani, bool? islemKullan})
+      : _db = veritabani ?? FirebaseFirestore.instance,
+        _islemKullan = islemKullan ?? _islemDestekli;
 
   final FirebaseFirestore _db;
+  final bool _islemKullan;
+
+  /// Windows masaüstünde cloud_firestore eklentisinin `runTransaction` çağrısı
+  /// (yalnızca okuma yapsa bile) uygulamayı yerel C++ katmanında sonlandırır
+  /// (`__fastfail`, çıkış kodu 0xc0000409). Düz get/set/batch/sorgu sorunsuzdur.
+  /// Bu yüzden Windows'ta transaction yerine sade oku-değiştir-yaz kullanılır:
+  /// iki cihaz aynı anda aynı listeyi kaydederse son yazan kazanır. Web ve
+  /// Android'de transaction korunur.
+  static bool get _islemDestekli =>
+      kIsWeb || defaultTargetPlatform != TargetPlatform.windows;
 
   /// Bordro ve ücret belgeleri (`bordro_*`, `ucretler_*`) ayrı bir koleksiyonda
   /// durur: güvenlik kuralı koleksiyon düzeyinde "bordro yetkisi" ister ve
@@ -126,12 +140,24 @@ class FirestoreServis implements VeriServisi, YedeklenebilirServis {
   Future<void> _listeGuncelle(
       String anahtar, bool Function(List<dynamic> liste) degistir) {
     final ref = _ref(anahtar);
+    if (!_islemKullan) return _listeGuncelleSade(ref, anahtar, degistir);
     return _db.runTransaction((tx) async {
       final snap = await tx.get(ref);
       final liste = _listeCoz(snap.data()?['j'] as String?, anahtar);
       if (!degistir(liste)) return;
       tx.set(ref, _dokuman(anahtar, liste));
     });
+  }
+
+  /// Transaction kullanılamayan platformlar için sade oku-değiştir-yaz.
+  Future<void> _listeGuncelleSade(
+      DocumentReference<Map<String, dynamic>> ref,
+      String anahtar,
+      bool Function(List<dynamic> liste) degistir) async {
+    final snap = await ref.get();
+    final liste = _listeCoz(snap.data()?['j'] as String?, anahtar);
+    if (!degistir(liste)) return;
+    await ref.set(_dokuman(anahtar, liste));
   }
 
   /// Listede [idAlani] = [id] olan kaydı değiştirir, yoksa sona ekler.

@@ -96,6 +96,13 @@ tanımaz. Bu tek yönlü bağımlılığı koru.
   değil, `kurumId` string'ine `#guvenlik` / `#temizlik` eklenerek yapılıyor
   (`NobetDurumu._birimId`). Yedekleme/geri yükleme (`tumVeriyiDisaAktar` /
   `yedektenYukle`) bu anahtar prefix'lerini tarayarak çalışır.
+- **Windows'ta `runTransaction` KULLANMA:** cloud_firestore eklentisinin
+  `runTransaction` çağrısı (yalnızca okusa bile) Windows masaüstünde uygulamayı
+  yerel katmanda sonlandırır (`__fastfail`, olay günlüğünde `0xc0000409`).
+  Düz get/set/batch/sorgu sorunsuzdur. `FirestoreServis._listeGuncelle`
+  Windows'ta sade oku-değiştir-yaz'a düşer (`_islemDestekli`); yeni bir yerde
+  transaction gerekirse aynı korumayı uygula. Web/Android'de transaction
+  geçerlidir. Test: `test/firestore_servis_test.dart` "Windows: transaction…".
 - `firestore_servis.dart` — `FirestoreServis`: aynı anahtar düzenini
   Firestore'daki `nobet_pro` koleksiyonuna uygular (doküman kimliği =
   yerel anahtar, içerik `j` alanında JSON metni). Prefix taramaları

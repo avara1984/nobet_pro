@@ -1,11 +1,26 @@
 import 'dart:convert';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nobet_pro/modeller/bordro_modelleri.dart';
 import 'package:nobet_pro/modeller/modeller.dart';
 import 'package:nobet_pro/servisler/firestore_servis.dart';
 import 'package:nobet_pro/servisler/veri_servisi.dart';
+
+/// Windows'ta çöken `runTransaction` çağrısını yakalamak için: çağrılırsa test düşer.
+class _IslemYasakliDb extends FakeFirebaseFirestore {
+  int islemCagrisi = 0;
+
+  @override
+  Future<T> runTransaction<T>(TransactionHandler<T> transactionHandler,
+      {Duration timeout = const Duration(seconds: 30),
+      int maxAttempts = 5}) async {
+    islemCagrisi++;
+    throw StateError('runTransaction çağrılmamalıydı');
+  }
+}
 
 void main() {
   late FakeFirebaseFirestore db;
@@ -237,6 +252,67 @@ void main() {
       await expectLater(servis.bordroYukle(birim, dev),
           throwsA(isA<VeriCokBuyukHatasi>()));
       expect(await servis.bordroYuklemesiniGetir(birim, 'p1', 2026, 7), isNull);
+    });
+  });
+
+  group('Windows: transaction kullanılmaz (eklenti çöküyor)', () {
+    tearDown(() => debugDefaultTargetPlatformOverride = null);
+
+    Future<void> tumListeIslemleri(FirestoreServis s) async {
+      Kullanici kisi(String uid) => Kullanici(
+          uid: uid, ad: uid, eposta: '', rol: Rol.editor, kurumId: kurum);
+      expect((await s.kullanicilariGetir(kurum)).single.uid, 'yonetici');
+      await s.kullaniciKaydet(kurum, kisi('a'));
+      await s.kullaniciKaydet(kurum, kisi('a')); // güncelleme, kopya yok
+      await s.kullaniciKaydet(kurum, kisi('b'));
+      await s.kullaniciSil(kurum, 'a');
+      expect((await s.kullanicilariGetir(kurum)).map((k) => k.uid).toSet(), {'yonetici', 'b'});
+
+      await s.personelKaydet(birim, Personel(id: 'p1', ad: 'Ali'));
+      await s.personelSil(birim, 'p1');
+      expect(await s.personelleriGetir(birim), isEmpty);
+
+      await s.duyuruKaydet(
+          kurum, Duyuru(id: 'd1', baslik: 'B', icerik: 'İ', tarih: DateTime(2026, 7, 1)));
+      expect((await s.duyurulariGetir(kurum)).single.id, 'd1');
+      await s.duyuruSil(kurum, 'd1');
+
+      await s.personelUcretiKaydet(
+          birim, PersonelUcreti(personelId: 'p1', gunlukUcret: 1500));
+      expect((await s.personelUcretleriGetir(birim)).single.gunlukUcret, 1500);
+
+      // Versiyonlu kayıt, versiyon listesini de günceller (Onaylanan Liste kaydı).
+      final k = AyKaydi(yil: 2026, ay: 7, versiyon: kVersiyonOnayli);
+      k.ata(1, 'p1', kGunduz12);
+      await s.ayKaydiKaydet(birim, k);
+      expect((await s.ayKaydiGetir(birim, 2026, 7, versiyon: kVersiyonOnayli)).kod(1, 'p1'),
+          kGunduz12);
+    }
+
+    test('Windows platformunda hiçbir liste işlemi runTransaction çağırmaz', () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+      final yasakli = _IslemYasakliDb();
+      await tumListeIslemleri(FirestoreServis(veritabani: yasakli));
+      expect(yasakli.islemCagrisi, 0);
+    });
+
+    test('islemKullan: false verilince de transaction kullanılmaz', () async {
+      final yasakli = _IslemYasakliDb();
+      await tumListeIslemleri(
+          FirestoreServis(veritabani: yasakli, islemKullan: false));
+      expect(yasakli.islemCagrisi, 0);
+    });
+
+    test('Android/web\'de transaction kullanılmaya devam eder', () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      final yasakli = _IslemYasakliDb();
+      await expectLater(
+        FirestoreServis(veritabani: yasakli).kullaniciKaydet(
+            kurum,
+            Kullanici(uid: 'a', ad: 'a', eposta: '', rol: Rol.editor, kurumId: kurum)),
+        throwsA(isA<StateError>()),
+      );
+      expect(yasakli.islemCagrisi, 1);
     });
   });
 

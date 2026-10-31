@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 import '../core/kimlik.dart';
 import '../core/tema.dart';
 import '../modeller/modeller.dart';
-import '../servisler/veri_servisi.dart';
+import '../servisler/giris_servisi.dart';
 import 'uye_ol_ekrani.dart';
 
 /// Uygulama açılışında ve "Çıkış Yap" sonrasında gösterilen giriş ekranı.
@@ -17,14 +17,14 @@ import 'uye_ol_ekrani.dart';
 class GirisEkrani extends StatefulWidget {
   const GirisEkrani({
     super.key,
-    required this.servis,
+    required this.giris,
     required this.kurumId,
     required this.girisYapildi,
     this.baslangicKimlik = '',
     this.baslangicHatirla = true,
   });
 
-  final VeriServisi servis;
+  final GirisServisi giris;
   final String kurumId;
 
   /// İkinci parametre "Beni hatırla" seçili mi — kaydetme işini
@@ -42,7 +42,7 @@ class GirisEkrani extends StatefulWidget {
 }
 
 class _GirisEkraniState extends State<GirisEkrani> {
-  List<Kullanici>? _kullanicilar;
+  GirisDurumu? _durum;
   String? _yuklemeHatasi;
   bool _mesgul = false;
 
@@ -80,23 +80,16 @@ class _GirisEkraniState extends State<GirisEkrani> {
 
   Future<void> _yukle() async {
     setState(() {
-      _kullanicilar = null;
+      _durum = null;
       _yuklemeHatasi = null;
     });
     try {
-      final liste = await widget.servis.kullanicilariGetir(widget.kurumId);
-      if (mounted) setState(() => _kullanicilar = liste);
+      final durum = await widget.giris.durum(widget.kurumId);
+      if (mounted) setState(() => _durum = durum);
     } catch (e) {
       if (mounted) setState(() => _yuklemeHatasi = '$e');
     }
   }
-
-  /// Kimlik + şifresi tanımlı, onaylı bir yönetici var mı?
-  bool get _yoneticiVar => (_kullanicilar ?? const []).any((k) =>
-      k.rol == Rol.yonetici &&
-      k.kimlik.isNotEmpty &&
-      k.sifreHash.isNotEmpty &&
-      k.onayli);
 
   void _hata(String mesaj) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -117,31 +110,18 @@ class _GirisEkraniState extends State<GirisEkrani> {
       return;
     }
 
-    final girilenKucuk = girilen.toLowerCase();
-    final eslesenler = (_kullanicilar ?? const [])
-        .where((k) =>
-            k.kimlik == girilen ||
-            (k.kullaniciAdi.isNotEmpty &&
-                k.kullaniciAdi.toLowerCase() == girilenKucuk))
-        .toList();
-    if (eslesenler.isEmpty) {
-      _hata('Bu T.C. Kimlik No veya kullanıcı adıyla kayıt bulunamadı.');
-      return;
+    setState(() => _mesgul = true);
+    try {
+      final k = await widget.giris.girisYap(widget.kurumId, girilen, sifre);
+      if (!mounted) return;
+      widget.girisYapildi(k, _beniHatirla);
+    } on GirisHatasi catch (e) {
+      _hata(e.mesaj);
+    } catch (e) {
+      _hata('Giriş yapılamadı: $e');
+    } finally {
+      if (mounted) setState(() => _mesgul = false);
     }
-    final k = eslesenler.first;
-    if (!Kimlik.sifreDogru(sifre, k.sifreHash)) {
-      _hata('Şifre hatalı.');
-      return;
-    }
-    if (!k.onayli) {
-      _hata('Hesabınız henüz yönetici onayı bekliyor.');
-      return;
-    }
-    if (!k.aktif) {
-      _hata('Hesabınız pasif durumda. Yöneticinize başvurun.');
-      return;
-    }
-    widget.girisYapildi(k, _beniHatirla);
   }
 
   // ── İLK KURULUM: YÖNETİCİ OLUŞTUR ────────────────────────────────────
@@ -170,28 +150,15 @@ class _GirisEkraniState extends State<GirisEkrani> {
 
     setState(() => _mesgul = true);
     try {
-      // Servisler ilk açılışta kimliksiz varsayılan bir "Yönetici" oluşturur;
-      // varsa onu yükselt (mükerrer kayıt olmasın), yoksa yeni admin yarat.
-      final bosYonetici = (_kullanicilar ?? const []).where((k) =>
-          k.rol == Rol.yonetici && k.kimlik.isEmpty).toList();
-      final yonetici = bosYonetici.isNotEmpty
-          ? bosYonetici.first.kopyala(
-              ad: ad,
-              kimlik: tc,
-              sifreHash: Kimlik.sifreOzeti(s1),
-              onayli: true,
-            )
-          : Kullanici.yonetici(
-              uid: 'k${DateTime.now().microsecondsSinceEpoch}',
-              ad: ad,
-              kurumId: widget.kurumId,
-              profil: YoneticiProfili.superAdmin,
-              kimlik: tc,
-              sifreHash: Kimlik.sifreOzeti(s1),
-              onayli: true,
-            );
-      await widget.servis.kullaniciKaydet(widget.kurumId, yonetici);
+      final yonetici = await widget.giris
+          .yoneticiOlustur(widget.kurumId, ad: ad, kimlik: tc, sifre: s1);
+      if (!mounted) return;
       widget.girisYapildi(yonetici, _beniHatirla);
+    } on GirisHatasi catch (e) {
+      if (mounted) {
+        setState(() => _mesgul = false);
+        _hata(e.mesaj);
+      }
     } catch (e) {
       if (mounted) {
         setState(() => _mesgul = false);
@@ -204,9 +171,8 @@ class _GirisEkraniState extends State<GirisEkrani> {
   Future<void> _uyeOlAc() async {
     await Navigator.of(context).push(MaterialPageRoute(
       builder: (_) => UyeOlEkrani(
-        servis: widget.servis,
+        giris: widget.giris,
         kurumId: widget.kurumId,
-        mevcutKullanicilar: _kullanicilar ?? const [],
       ),
     ));
     // Dönüşte listeyi tazele (yeni kayıt eklenmiş olabilir).
@@ -241,12 +207,12 @@ class _GirisEkraniState extends State<GirisEkrani> {
     Widget icerik;
     if (_yuklemeHatasi != null) {
       icerik = _hataIcerigi();
-    } else if (_kullanicilar == null) {
+    } else if (_durum == null) {
       icerik = const Padding(
         padding: EdgeInsets.all(40),
         child: Center(child: CircularProgressIndicator()),
       );
-    } else if (!_yoneticiVar) {
+    } else if (!_durum!.yoneticiVar) {
       icerik = _ilkKurulumIcerigi();
     } else {
       icerik = _girisIcerigi();

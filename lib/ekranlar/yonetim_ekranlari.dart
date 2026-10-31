@@ -12,6 +12,7 @@ import '../core/mesai_hesap.dart' as mh;
 import '../durum/nobet_durumu.dart';
 import '../modeller/modeller.dart';
 import '../servisler/firestore_servis.dart';
+import '../servisler/giris_servisi.dart';
 import '../servisler/veri_servisi.dart';
 import '../servisler/yerel_servis.dart';
 
@@ -2433,7 +2434,6 @@ class _AdminYonetimiEkraniState extends State<AdminYonetimiEkrani> {
             pin: temizPin,
             kimlik: tcMetin,
             kullaniciAdi: kullaniciAdiMetin,
-            sifreHash: s1.isNotEmpty ? Kimlik.sifreOzeti(s1) : '',
             onayli: true,
           )
         : hedef!.kopyala(
@@ -2442,11 +2442,23 @@ class _AdminYonetimiEkraniState extends State<AdminYonetimiEkrani> {
             yoneticiProfili: profil,
             kimlik: tcMetin.isNotEmpty ? tcMetin : null,
             kullaniciAdi: kullaniciAdiMetin.isNotEmpty ? kullaniciAdiMetin : null,
-            sifreHash: s1.isNotEmpty ? Kimlik.sifreOzeti(s1) : null,
             onayli: true,
           );
 
-    await d.servis.kullaniciKaydet(d.kurumId, yeni);
+    final giris = context.read<GirisServisi>();
+    try {
+      await d.servis.kullaniciKaydet(d.kurumId, yeni);
+      // Şifre kayıttan ayrı gönderilir: bulutta şifre özeti kullanıcı
+      // kaydında tutulmaz, sunucu güvenli biçimde saklar.
+      if (s1.isNotEmpty) await giris.sifreAyarla(d.kurumId, yeni.uid, s1);
+    } on GirisHatasi catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.mesaj)));
+      }
+      await _yukle();
+      return;
+    }
     await _yukle();
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(

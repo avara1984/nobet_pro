@@ -35,8 +35,11 @@ class FirestoreServis implements VeriServisi, YedeklenebilirServis {
   ///  - Firestore kuralları `nobet_pro` koleksiyonuna izin vermiyorsa →
   ///    `permission-denied` fırlatır.
   /// Çağıran taraf hata durumunda yerel moda düşer.
+  ///
+  /// Kurum ayarı dokümanı okunur: giriş yapmış her kullanıcı bunu okuyabilir
+  /// (kullanıcılar dokümanı yalnızca yöneticiye açıktır).
   Future<void> saglikKontrolu(String kurumId) =>
-      _kol.doc(_kullaniciAnahtari(kurumId)).get();
+      _kol.doc(_kurumAnahtari(kurumId)).get();
 
   // --- anahtarlar (YerelServis ile aynı) -------------------------------------
   String _kurumAnahtari(String id) => 'kurum_$id';

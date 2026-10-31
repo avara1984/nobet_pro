@@ -27,6 +27,7 @@ import 'firebase_options.dart';
 import 'modeller/modeller.dart';
 import 'servisler/bildirim_servisi.dart';
 import 'servisler/firestore_servis.dart';
+import 'servisler/giris_servisi.dart';
 import 'servisler/veri_servisi.dart';
 import 'servisler/yerel_servis.dart';
 
@@ -45,6 +46,7 @@ Future<void> main() async {
   final tercihler = await SharedPreferences.getInstance();
 
   VeriServisi servis;
+  GirisServisi giris;
   var bulut = false;
   try {
     await Firebase.initializeApp(
@@ -57,31 +59,41 @@ Future<void> main() async {
       cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
     );
 
-    // Anonim oturum — Firestore kuralları `request.auth != null` istediği
-    // için gerekli. Uygulamanın kendi T.C.+şifre girişiyle ilgisi yoktur;
-    // kullanıcı bunu hiç görmez. Cihaz başına tek anonim kimlik oluşur ve
-    // saklanır, her açılışta yenisi yaratılmaz.
-    if (FirebaseAuth.instance.currentUser == null) {
-      await FirebaseAuth.instance
-          .signInAnonymously()
-          .timeout(const Duration(seconds: 10));
+    final aday = FirestoreServis();
+    final adayGiris = BulutGirisServisi(veri: aday);
+
+    // "Beni hatırla" kapalıysa önceki oturumdan kalan Firebase oturumu
+    // (veya eski sürümlerden kalan anonim oturum) temizlenir.
+    final auth = FirebaseAuth.instance;
+    if (!(tercihler.getBool(_kHatirla) ?? false) && auth.currentUser != null) {
+      await adayGiris.cikis();
     }
 
-    final aday = FirestoreServis();
-    // initializeApp çevrimdışıyken de başarılı olur; bulut modunun
-    // GERÇEKTEN kullanılabilir olduğunu (ağ/önbellek + Firestore kuralları)
-    // tek bir okuma ile doğrula. Başarısızsa yerel moda düş.
-    await aday
-        .saglikKontrolu(kKurumId)
-        .timeout(const Duration(seconds: 10));
+    // Bulut modunun GERÇEKTEN kullanılabilir olduğunu doğrula (initializeApp
+    // çevrimdışıyken de başarılı olur). Giriş yapılmış bir oturum varsa
+    // Firestore'dan (gerekirse önbellekten) tek bir okuma; yoksa giriş
+    // sunucusuna ulaşılabildiği kontrol edilir. Başarısızsa yerel moda düş.
+    final oturumlu = auth.currentUser != null && !auth.currentUser!.isAnonymous;
+    if (oturumlu) {
+      await aday
+          .saglikKontrolu(kKurumId)
+          .timeout(const Duration(seconds: 10));
+    } else {
+      await adayGiris
+          .durum(kKurumId)
+          .timeout(const Duration(seconds: 10));
+    }
     servis = aday;
+    giris = adayGiris;
     bulut = true;
   } catch (e) {
     debugPrint('Bulut moduna geçilemedi, yerel mod kullanılacak: $e');
     servis = YerelServis(tercihler);
+    giris = YerelGirisServisi(servis);
   }
 
-  runApp(NobetProApp(tercihler: tercihler, servis: servis, bulut: bulut));
+  runApp(NobetProApp(
+      tercihler: tercihler, servis: servis, giris: giris, bulut: bulut));
 }
 
 class NobetProApp extends StatefulWidget {
@@ -89,11 +101,13 @@ class NobetProApp extends StatefulWidget {
     super.key,
     required this.tercihler,
     required this.servis,
+    required this.giris,
     required this.bulut,
   });
 
   final SharedPreferences tercihler;
   final VeriServisi servis;
+  final GirisServisi giris;
 
   /// Firestore modunda mı çalışıyor? (false = yerel yedek mod)
   final bool bulut;
@@ -105,6 +119,7 @@ class NobetProApp extends StatefulWidget {
 class _NobetProAppState extends State<NobetProApp> {
   late bool _koyu;
   late final VeriServisi _servis;
+  late final GirisServisi _giris;
   final _oturum = OturumDurumu();
   late final EkranOlcegi _olcek;
   bool _hazir = false;
@@ -115,6 +130,7 @@ class _NobetProAppState extends State<NobetProApp> {
     _olcek = EkranOlcegi(widget.tercihler);
     _koyu = widget.tercihler.getBool('koyuTema') ?? false;
     _servis = widget.servis;
+    _giris = widget.giris;
     _sonKullaniciyiAc();
   }
 
@@ -133,29 +149,40 @@ class _NobetProAppState extends State<NobetProApp> {
     }
     final uid = widget.tercihler.getString(_kHatirlananUid);
     try {
-      final liste = await _servis
-          .kullanicilariGetir(kKurumId)
+      // Bulutta kayıtlı Firebase oturumundan, yerelde kayıtlı uid'den güncel
+      // profil okunur. Silinmiş/pasifleştirilmiş veya onayı geri alınmış
+      // kullanıcı için otomatik giriş yapılmaz.
+      final k = await _giris
+          .ben(kKurumId, uid: uid)
           .timeout(Duration(seconds: widget.bulut ? 15 : 5));
-
-      // Kullanıcı silinmiş/pasifleştirilmiş veya onayı geri alınmış
-      // olabilir — bu durumda otomatik giriş yapılmaz.
-      final uygun =
-          liste.where((k) => k.uid == uid && k.onayli && k.aktif);
-      if (uygun.isNotEmpty) _oturum.ayarla(uygun.first);
+      if (k != null) _oturum.ayarla(k);
+    } on GirisHatasi catch (e) {
+      if (e.ag) {
+        _onbellektenAc(uid);
+      } else {
+        // Hesap reddedildi (silinmiş, pasif, oturum geçersiz).
+        await _giris.cikis();
+      }
     } catch (e) {
       debugPrint(
-          'Kullanıcı listesi okunamadı, önbellekten devam ediliyor: $e');
-      final json = widget.tercihler.getString(_kHatirlananKullaniciJson);
-      if (json != null) {
-        try {
-          final harita = jsonDecode(json) as Map<String, dynamic>;
-          _oturum.ayarla(Kullanici.haritadan(uid ?? '', harita));
-        } catch (_) {
-          // Önbellek bozuksa sessizce normal giriş ekranına düş.
-        }
-      }
+          'Kullanıcı bilgisi okunamadı, önbellekten devam ediliyor: $e');
+      _onbellektenAc(uid);
     } finally {
       if (mounted) setState(() => _hazir = true);
+    }
+  }
+
+  /// Sunucuya ulaşılamadığında son başarılı girişte saklanan kullanıcı
+  /// kaydıyla devam eder. Yetki/aktiflik değişmiş olabilir; bu, bir sonraki
+  /// başarılı sunucu bağlantısında normal akışla kontrol edilir.
+  void _onbellektenAc(String? uid) {
+    final json = widget.tercihler.getString(_kHatirlananKullaniciJson);
+    if (json == null) return;
+    try {
+      final harita = jsonDecode(json) as Map<String, dynamic>;
+      _oturum.ayarla(Kullanici.haritadan(uid ?? '', harita));
+    } catch (_) {
+      // Önbellek bozuksa sessizce normal giriş ekranına düş.
     }
   }
 
@@ -181,6 +208,7 @@ class _NobetProAppState extends State<NobetProApp> {
     await widget.tercihler.setBool(_kHatirla, false);
     await widget.tercihler.remove(_kHatirlananUid);
     await widget.tercihler.remove(_kHatirlananKullaniciJson);
+    await _giris.cikis();
     _oturum.temizle();
   }
 
@@ -195,6 +223,7 @@ class _NobetProAppState extends State<NobetProApp> {
       providers: [
         ChangeNotifierProvider.value(value: _oturum),
         ChangeNotifierProvider.value(value: _olcek),
+        Provider<GirisServisi>.value(value: _giris),
       ],
       child: MaterialApp(
         title: 'Nöbet Sistemi',
@@ -219,7 +248,7 @@ class _NobetProAppState extends State<NobetProApp> {
                 builder: (context, oturum, _) {
                   if (!oturum.girisYapildi) {
                     return GirisEkrani(
-                      servis: _servis,
+                      giris: _giris,
                       kurumId: kKurumId,
                       girisYapildi: _girisYapildi,
                       baslangicKimlik: widget.tercihler

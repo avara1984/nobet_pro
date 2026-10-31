@@ -30,6 +30,10 @@ dependencies:
   crypto: ^3.0.0
   firebase_auth: ^5.7.0
 
+  # giriş uç noktaları (Cloud Functions, düz JSON) — cloud_functions paketi
+  # Windows'u desteklemediği için http kullanılır
+  http: ^1.2.2
+
   # bordro PDF yükleme — dosya seçimi, temp klasör, açma
   file_picker: ^8.1.7
   path_provider: ^2.1.4

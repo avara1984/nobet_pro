@@ -4,6 +4,7 @@ import 'package:nobet_pro/core/kimlik.dart';
 import 'package:nobet_pro/core/tema.dart';
 import 'package:nobet_pro/ekranlar/giris_ekrani.dart';
 import 'package:nobet_pro/modeller/modeller.dart';
+import 'package:nobet_pro/servisler/giris_servisi.dart';
 import 'package:nobet_pro/servisler/veri_servisi.dart';
 
 /// Kullanıcıları bellekte tutan test servisi.
@@ -89,7 +90,7 @@ void main() {
       await t.pumpWidget(MaterialApp(
         theme: Tema.acik,
         home: GirisEkrani(
-            servis: _FakeServis([]), kurumId: 'x', girisYapildi: (_, __) {}),
+            giris: YerelGirisServisi(_FakeServis([])), kurumId: 'x', girisYapildi: (_, __) {}),
       ));
       await t.pumpAndSettle();
       expect(find.text('OLUŞTUR VE GİRİŞ YAP'), findsOneWidget);
@@ -108,7 +109,7 @@ void main() {
       await t.pumpWidget(MaterialApp(
         theme: Tema.acik,
         home: GirisEkrani(
-            servis: _FakeServis([admin]), kurumId: 'x', girisYapildi: (_, __) {}),
+            giris: YerelGirisServisi(_FakeServis([admin])), kurumId: 'x', girisYapildi: (_, __) {}),
       ));
       await t.pumpAndSettle();
       expect(find.text('GİRİŞ YAP'), findsOneWidget);
@@ -128,7 +129,7 @@ void main() {
       await t.pumpWidget(MaterialApp(
         theme: Tema.acik,
         home: GirisEkrani(
-            servis: _FakeServis([admin]), kurumId: 'x', girisYapildi: (_, __) {}),
+            giris: YerelGirisServisi(_FakeServis([admin])), kurumId: 'x', girisYapildi: (_, __) {}),
       ));
       await t.pumpAndSettle();
       final alan =
@@ -155,7 +156,7 @@ void main() {
       await t.pumpWidget(MaterialApp(
         theme: Tema.acik,
         home: GirisEkrani(
-            servis: _FakeServis([admin]),
+            giris: YerelGirisServisi(_FakeServis([admin])),
             kurumId: 'x',
             girisYapildi: (k, _) => giren = k),
       ));
@@ -181,7 +182,7 @@ void main() {
       await t.pumpWidget(MaterialApp(
         theme: Tema.acik,
         home: GirisEkrani(
-            servis: _FakeServis([admin]),
+            giris: YerelGirisServisi(_FakeServis([admin])),
             kurumId: 'x',
             girisYapildi: (k, _) => giren = k),
       ));
@@ -217,7 +218,7 @@ void main() {
       await t.pumpWidget(MaterialApp(
         theme: Tema.acik,
         home: GirisEkrani(
-            servis: _FakeServis([admin, personel]),
+            giris: YerelGirisServisi(_FakeServis([admin, personel])),
             kurumId: 'x',
             girisYapildi: (k, _) => giren = k),
       ));

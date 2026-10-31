@@ -3,22 +3,19 @@ import 'package:flutter/services.dart';
 
 import '../core/kimlik.dart';
 import '../core/tema.dart';
-import '../modeller/modeller.dart';
-import '../servisler/veri_servisi.dart';
+import '../servisler/giris_servisi.dart';
 
 /// Personel kendi hesabını oluşturur. Kayıt onaysız (`onayli = false`) başlar;
 /// yönetici Kullanıcılar ekranından onaylayınca giriş yapabilir.
 class UyeOlEkrani extends StatefulWidget {
   const UyeOlEkrani({
     super.key,
-    required this.servis,
+    required this.giris,
     required this.kurumId,
-    required this.mevcutKullanicilar,
   });
 
-  final VeriServisi servis;
+  final GirisServisi giris;
   final String kurumId;
-  final List<Kullanici> mevcutKullanicilar;
 
   @override
   State<UyeOlEkrani> createState() => _UyeOlEkraniState();
@@ -57,27 +54,20 @@ class _UyeOlEkraniState extends State<UyeOlEkrani> {
     if (!Kimlik.tcGecerli(tc)) {
       return _hata('Geçerli bir 11 haneli T.C. Kimlik No girin.');
     }
-    if (widget.mevcutKullanicilar.any((k) => k.kimlik == tc)) {
-      return _hata('Bu T.C. Kimlik No zaten kayıtlı.');
-    }
     if (s1.length < 6) return _hata('Şifre en az 6 karakter olmalı.');
     if (s1 != s2) return _hata('Şifreler eşleşmiyor.');
 
     setState(() => _mesgul = true);
     try {
-      final yeni = Kullanici(
-        uid: 'k${DateTime.now().microsecondsSinceEpoch}',
-        ad: ad,
-        eposta: '',
-        rol: Rol.izleyici,
-        kurumId: widget.kurumId,
-        kimlik: tc,
-        sifreHash: Kimlik.sifreOzeti(s1),
-        onayli: false,
-      );
-      await widget.servis.kullaniciKaydet(widget.kurumId, yeni);
+      await widget.giris
+          .uyeOl(widget.kurumId, ad: ad, kimlik: tc, sifre: s1);
       if (!mounted) return;
       await _basariGoster();
+    } on GirisHatasi catch (e) {
+      if (mounted) {
+        setState(() => _mesgul = false);
+        _hata(e.mesaj);
+      }
     } catch (e) {
       if (mounted) {
         setState(() => _mesgul = false);

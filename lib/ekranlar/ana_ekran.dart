@@ -885,6 +885,7 @@ class _UstBaslik extends StatelessWidget {
   /// (madde 12C) — sessiz veri kaybını önler.
   static Future<void> _donemSecKontrollu(
       BuildContext context, NobetDurumu d) async {
+    final oturum = context.read<OturumDurumu>();
     if (d.kirli) {
       final devam = await _kaydedilmemisUyarisi(
         context,
@@ -894,7 +895,6 @@ class _UstBaslik extends StatelessWidget {
             'kaydedin veya devam etmeden önce kaydetmeyi atlayın.',
       );
       if (devam == 'kaydet') {
-        final oturum = context.read<OturumDurumu>();
         await d.kaydet(kaydeden: oturum.kullanici?.ad ?? '');
       } else if (devam != 'atla') {
         return; // vazgeçildi
@@ -907,6 +907,7 @@ class _UstBaslik extends StatelessWidget {
   /// Ok butonlarıyla bir ay ileri/geri gider (delta: -1 veya 1).
   static Future<void> _ayKaydir(
       BuildContext context, NobetDurumu d, int delta) async {
+    final oturum = context.read<OturumDurumu>();
     var yeniAy = d.ay + delta;
     var yeniYil = d.yil;
     if (yeniAy < 1) {
@@ -925,7 +926,6 @@ class _UstBaslik extends StatelessWidget {
             'kaydedin veya devam etmeden önce kaydetmeyi atlayın.',
       );
       if (devam == 'kaydet') {
-        final oturum = context.read<OturumDurumu>();
         await d.kaydet(kaydeden: oturum.kullanici?.ad ?? '');
       } else if (devam != 'atla') {
         return; // vazgeçildi
@@ -939,6 +939,7 @@ class _UstBaslik extends StatelessWidget {
   static Future<void> _birimDegistirKontrollu(
       BuildContext context, NobetDurumu d, Birim hedef) async {
     if (hedef == d.birim) return;
+    final oturum = context.read<OturumDurumu>();
     if (d.kirli) {
       final devam = await _kaydedilmemisUyarisi(
         context,
@@ -949,7 +950,6 @@ class _UstBaslik extends StatelessWidget {
             'istersiniz?',
       );
       if (devam == 'kaydet') {
-        final oturum = context.read<OturumDurumu>();
         await d.kaydet(kaydeden: oturum.kullanici?.ad ?? '');
       } else if (devam != 'atla') {
         return; // vazgeçildi

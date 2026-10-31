@@ -211,8 +211,6 @@ void main() {
   });
 
   group('Nöbet listesinden girdi', () {
-    final ayar = KurumAyari();
-
     test('gece saati ve yol günü doğru sayılır', () {
       // Boş KurumAyari hazır Türkiye tatil listesini kullanır (15 Temmuz dahil);
       // bu test tatilsiz bir ay istediği için Temmuz'a denk gelmeyen tek bir

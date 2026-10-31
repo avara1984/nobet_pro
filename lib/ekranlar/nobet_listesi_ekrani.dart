@@ -1648,7 +1648,7 @@ class _NobetListesiEkraniState extends State<NobetListesiEkrani> {
         ],
       ),
     );
-    if (onay != true) return;
+    if (onay != true || !mounted) return;
     final oturum = context.read<OturumDurumu>();
     final mesaj =
         await d.versiyonaKopyala(hedef, kaydeden: oturum.kullanici?.ad ?? '');

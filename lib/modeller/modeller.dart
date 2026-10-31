@@ -508,14 +508,6 @@ class VardiyaTanimi {
   /// Bordro saati. Elle tanımlanmadıysa takvimsel süreden hesaplanır.
   double get saat => toplamSaat > 0 ? toplamSaat : sureDk / 60.0;
 
-  bool get erteseGuneSarkar =>
-      sureDk > 0 && bitisDk <= baslangicDk && baslangicDk > 0;
-
-  /// Gece vardiyası mı (bordroda gece saati var mı)
-  bool get geceVardiyasi => geceSaati > 0;
-
-  String get gorunenKisa => kisa.isEmpty ? kod : kisa;
-
   factory VardiyaTanimi.haritadan(Map<String, dynamic> m) => VardiyaTanimi(
         kod: (m['kod'] ?? '') as String,
         etiket: (m['etiket'] ?? '') as String,

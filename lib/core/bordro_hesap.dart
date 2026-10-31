@@ -20,9 +20,6 @@ typedef NobetGirdisi = ({
   int doluGun,
 });
 
-const NobetGirdisi kBosNobetGirdisi =
-    (geceSaati: 0.0, tatilGunu: 0, yolGunu: 0, doluGun: 0);
-
 /// Yol/yemek yardımı sayılmayan vardiya kodları (fiilen çalışılmayan günler).
 const Set<String> kYolDisiKodlar = {
   '',

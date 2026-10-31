@@ -139,8 +139,6 @@ class NobetDurumu extends ChangeNotifier {
   /// yarinTatil kontrolü için gerekir (kResmiTatil kodu takibi).
   AyKaydi? _sonrakiAyKaydiTam;
 
-  /// Bu ay için tanımlı liste versiyonları. '' = asıl liste.
-  List<String> _versiyonlar = kListeVersiyonlari;
   String _aktifVersiyon;
 
   /// Geri alma yığını — her değişiklikten önce atamaların kopyası
@@ -388,7 +386,6 @@ class NobetDurumu extends ChangeNotifier {
 
   Future<void> _birimVerisiYukle() async {
     _personeller = await servis.personelleriGetir(_birimId);
-    _versiyonlar = kListeVersiyonlari;
     if (!versiyonlar.contains(_aktifVersiyon)) {
       _aktifVersiyon = kVersiyonNobet;
     }
@@ -447,7 +444,6 @@ class NobetDurumu extends ChangeNotifier {
     _yukleniyor = true;
     notifyListeners();
     try {
-      _versiyonlar = kListeVersiyonlari;
       _gecmis.clear();
       _oturumlukAcik = false;
       _kayit = await servis.ayKaydiGetir(_birimId, yil, ay,
@@ -606,26 +602,6 @@ class NobetDurumu extends ChangeNotifier {
     if (!duzenleyebilir || yayinKilidi) return;
     _gecmiseYaz();
     _kayit.ata(gun, personelId, kod);
-    _kirli = true;
-    _motoruTazele();
-    notifyListeners();
-  }
-
-  void gunuTemizle(int gun) {
-    if (!duzenleyebilir || yayinKilidi) return;
-    _gecmiseYaz();
-    for (final p in personeller) {
-      _kayit.ata(gun, p.id, '');
-    }
-    _kirli = true;
-    _motoruTazele();
-    notifyListeners();
-  }
-
-  void ayiTemizle() {
-    if (!duzenleyebilir || yayinKilidi) return;
-    _gecmiseYaz();
-    _kayit.atamalar.clear();
     _kirli = true;
     _motoruTazele();
     notifyListeners();
@@ -799,15 +775,6 @@ class NobetDurumu extends ChangeNotifier {
     return '${T.ayYil(oncekiYil, oncekiAy)} ayının son $n günü '
         '($kaynakAdi) çekirdek alındı, ${T.ayYil(_yil, _ay)} '
         'ayının tamamı yeniden kuruldu.';
-  }
-
-  /// Çekirdek günlerin önizlemesi: gun -> personelId -> kod
-  List<Map<String, String>> cekirdekOnizleme({bool buAydan = true}) {
-    final n = _ayar.dongUzunlugu;
-    return [
-      for (var g = 1; g <= n; g++)
-        {for (final p in personeller) p.id: _kayit.kod(g, p.id)}
-    ];
   }
 
   // ---------------------------------------------------------------------------
@@ -1000,16 +967,6 @@ class NobetDurumu extends ChangeNotifier {
     ];
   }
 
-  Map<String, int> personelOzeti(String personelId) {
-    final m = <String, int>{};
-    for (var g = 1; g <= gunSayisi; g++) {
-      final k = _kayit.kod(g, personelId);
-      if (k.isEmpty) continue;
-      m[k] = (m[k] ?? 0) + 1;
-    }
-    return m;
-  }
-
   /// Bir personelin, görüntülenen yılın Ocak'tan bulunulan aya kadar
   /// (bulunulan ay TAMAMI dahil — o ayın henüz gelmemiş günleri de
   /// sayılır, sadece bulunulan aydan SONRAKİ aylar hariç tutulur; üst
@@ -1051,13 +1008,5 @@ class NobetDurumu extends ChangeNotifier {
       }
     }
     return sonuc;
-  }
-
-  double personelSaati(String personelId) {
-    var t = 0.0;
-    for (var g = 1; g <= gunSayisi; g++) {
-      t += saatBilgisi(g, personelId).toplam;
-    }
-    return t;
   }
 }

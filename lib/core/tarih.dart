@@ -43,18 +43,6 @@ class T {
     return '${iki(d ~/ 60)}:${iki(d % 60)}';
   }
 
-  /// '08:15' → 495 ; hatalıysa null
-  static int? saatDakika(String metin) {
-    final p = metin.split(':');
-    if (p.length != 2) return null;
-    final s = int.tryParse(p[0]);
-    final d = int.tryParse(p[1]);
-    if (s == null || d == null || s < 0 || s > 23 || d < 0 || d > 59) {
-      return null;
-    }
-    return s * 60 + d;
-  }
-
   static String sureMetni(int dakika) {
     final s = dakika ~/ 60;
     final d = dakika % 60;

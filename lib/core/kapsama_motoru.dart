@@ -36,9 +36,6 @@ class GunKapsamasi {
   final int calisanSayisi;
   final List<KuralIhlali> ihlaller;
 
-  int get toplamEksikDk =>
-      ihlaller.fold(0, (t, i) => t + i.eksikDk);
-
   String get ipucu {
     if (durum == Kapsama.yok) return 'Bu gün için çalışan personel yok.';
     if (ihlaller.isEmpty) return 'Tüm kapsama kuralları sağlandı.';
@@ -103,8 +100,6 @@ class KapsamaMotoru {
     _onbellek = sonuc;
     return sonuc;
   }
-
-  void onbellegiTemizle() => _onbellek = null;
 
   // ---------------------------------------------------------------------------
   /// [a, b) aralığında en düşük personel sayısı ve

@@ -2,6 +2,35 @@ import '../core/tarih.dart';
 import '../modeller/bordro_modelleri.dart';
 import '../modeller/modeller.dart';
 
+/// Depodaki bir kayıt okunamadı (JSON bozuk veya beklenen biçimde değil).
+///
+/// Bozuk kayıt "boş" sayılmaz: aksi hâlde çağıran taraf varsayılan veriyi
+/// yazıp gerçek kaydın üzerine basardı. Hata kullanıcıya gösterilir, kayıt
+/// olduğu gibi kalır ve elle kurtarılabilir.
+class VeriBozukHatasi implements Exception {
+  const VeriBozukHatasi(this.anahtar);
+
+  /// Bozuk kaydın depo anahtarı (ör. `kullanicilar_varsayilan`).
+  final String anahtar;
+
+  @override
+  String toString() =>
+      'Kayıt okunamadı (bozuk veri): $anahtar. Üzerine yazılmadı; '
+      'yöneticiye başvurun.';
+}
+
+/// Bir kayıt, depolama sınırını aşacak kadar büyük.
+class VeriCokBuyukHatasi implements Exception {
+  const VeriCokBuyukHatasi(this.anahtar, this.bayt);
+
+  final String anahtar;
+  final int bayt;
+
+  @override
+  String toString() =>
+      'Kayıt çok büyük ($bayt bayt), kaydedilemedi: $anahtar.';
+}
+
 /// Veri katmanı sözleşmesi. FirestoreServis ve BellekServis bunu uygular.
 abstract class VeriServisi {
   Future<KurumAyari> kurumAyariGetir(String kurumId);
@@ -34,7 +63,6 @@ abstract class VeriServisi {
       String kurumId);
 
   Future<List<Kullanici>> kullanicilariGetir(String kurumId);
-  Future<void> kullaniciRolGuncelle(String uid, Rol rol);
   Future<void> kullaniciKaydet(String kurumId, Kullanici kullanici);
   Future<void> kullaniciSil(String kurumId, String uid);
 
@@ -205,9 +233,6 @@ class BellekServis implements VeriServisi {
           kurumId: kurumId,
         ),
       ];
-
-  @override
-  Future<void> kullaniciRolGuncelle(String uid, Rol rol) async {}
 
   @override
   Future<void> kullaniciKaydet(String kurumId, Kullanici kullanici) async {}

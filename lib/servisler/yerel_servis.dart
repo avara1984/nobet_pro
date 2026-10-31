@@ -45,7 +45,7 @@ class YerelServis implements VeriServisi, YedeklenebilirServis {
     try {
       return jsonDecode(metin) as Map<String, dynamic>;
     } catch (_) {
-      return null;
+      throw VeriBozukHatasi(anahtar);
     }
   }
 
@@ -55,7 +55,7 @@ class YerelServis implements VeriServisi, YedeklenebilirServis {
     try {
       return jsonDecode(metin) as List<dynamic>;
     } catch (_) {
-      return const [];
+      throw VeriBozukHatasi(anahtar);
     }
   }
 
@@ -284,9 +284,6 @@ class YerelServis implements VeriServisi, YedeklenebilirServis {
     if (liste.isEmpty) return; // son kullanıcı silinemez
     await _kullanicilariYaz(kurumId, liste);
   }
-
-  @override
-  Future<void> kullaniciRolGuncelle(String uid, Rol rol) async {}
 
   // --- BORDRO ----------------------------------------------------------------
   @override

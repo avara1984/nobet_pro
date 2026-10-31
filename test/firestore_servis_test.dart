@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nobet_pro/modeller/bordro_modelleri.dart';
 import 'package:nobet_pro/modeller/modeller.dart';
 import 'package:nobet_pro/servisler/firestore_servis.dart';
+import 'package:nobet_pro/servisler/veri_servisi.dart';
 
 void main() {
   late FakeFirebaseFirestore db;
@@ -157,6 +158,85 @@ void main() {
       final ucretler = await servis.personelUcretleriGetir(birim);
       expect(ucretler.length, 1);
       expect(ucretler.first.gunlukUcret, 2500);
+    });
+  });
+
+  group('Veri güvenliği', () {
+    Kullanici kisi(String uid) => Kullanici(
+        uid: uid, ad: uid, eposta: '', rol: Rol.editor, kurumId: kurum);
+
+    test('bozuk kullanıcı kaydı boş sayılıp varsayılanla ezilmez', () async {
+      const doc = 'kullanicilar_$kurum';
+      await db.collection('nobet_pro').doc(doc).set({'j': '{bozuk json'});
+
+      await expectLater(
+          servis.kullanicilariGetir(kurum), throwsA(isA<VeriBozukHatasi>()));
+      await expectLater(servis.kullaniciKaydet(kurum, kisi('a')),
+          throwsA(isA<VeriBozukHatasi>()));
+
+      final hamli = await db.collection('nobet_pro').doc(doc).get();
+      expect(hamli.data()!['j'], '{bozuk json',
+          reason: 'bozuk kayıt olduğu gibi kalmalı');
+    });
+
+    test('bozuk personel / ay kaydı hata verir, boş dönmez', () async {
+      await db
+          .collection('nobet_pro')
+          .doc('personeller_$birim')
+          .set({'j': 'bozuk'});
+      await expectLater(
+          servis.personelleriGetir(birim), throwsA(isA<VeriBozukHatasi>()));
+
+      await db
+          .collection('nobet_pro')
+          .doc('nobet_${birim}_2026-07')
+          .set({'j': '[1,2'});
+      await expectLater(servis.ayKaydiGetir(birim, 2026, 7),
+          throwsA(isA<VeriBozukHatasi>()));
+    });
+
+    // Not: eşzamanlı yazma çakışmasının yeniden denenmesi gerçek Firestore'un
+    // transaction davranışıdır; fake_cloud_firestore bunu taklit etmez, bu
+    // yüzden burada test edilemez.
+    test('art arda kayıtlar birikir', () async {
+      await servis.kullanicilariGetir(kurum); // varsayılan yönetici
+      for (var i = 0; i < 4; i++) {
+        await servis.kullaniciKaydet(kurum, kisi('k$i'));
+        await servis.personelKaydet(
+            birim, Personel(id: 'p$i', ad: 'P$i', sira: i));
+      }
+      expect((await servis.kullanicilariGetir(kurum)).map((k) => k.uid).toSet(),
+          {'yonetici', 'k0', 'k1', 'k2', 'k3'});
+      expect((await servis.personelleriGetir(birim)).length, 4);
+    });
+
+    test('ilk açılış yöneticisi mevcut kullanıcıları ezmez', () async {
+      await servis.kullaniciKaydet(kurum, kisi('a'));
+      final liste = await servis.kullanicilariGetir(kurum);
+      expect(liste.map((k) => k.uid), ['a']);
+    });
+
+    test('son kullanıcı silinemez, diğerleri silinebilir', () async {
+      await servis.kullaniciKaydet(kurum, kisi('a'));
+      await servis.kullaniciKaydet(kurum, kisi('b'));
+      await servis.kullaniciSil(kurum, 'a');
+      await servis.kullaniciSil(kurum, 'b'); // son kullanıcı → yok sayılır
+      expect((await servis.kullanicilariGetir(kurum)).map((k) => k.uid), ['b']);
+    });
+
+    test('1 MiB sınırını aşan kayıt açık hatayla reddedilir', () async {
+      final dev = YuklenmisBordro(
+        personelId: 'p1',
+        personelAd: 'Ali',
+        yil: 2026,
+        ay: 7,
+        dosyaAdi: 'b.pdf',
+        yuklemeTarihi: DateTime(2026, 7, 20),
+        pdfBase64: 'A' * 1100000,
+      );
+      await expectLater(servis.bordroYukle(birim, dev),
+          throwsA(isA<VeriCokBuyukHatasi>()));
+      expect(await servis.bordroYuklemesiniGetir(birim, 'p1', 2026, 7), isNull);
     });
   });
 

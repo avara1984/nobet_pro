@@ -63,29 +63,81 @@ class FirestoreServis implements VeriServisi, YedeklenebilirServis {
     return doc.data()?['j'] as String?;
   }
 
+  /// Kayıt yoksa null; bozuksa [VeriBozukHatasi] (boş sayılmaz).
   Future<Map<String, dynamic>?> _oku(String anahtar) async {
     final metin = await _metinOku(anahtar);
     if (metin == null || metin.isEmpty) return null;
     try {
       return jsonDecode(metin) as Map<String, dynamic>;
     } catch (_) {
-      return null;
+      throw VeriBozukHatasi(anahtar);
     }
   }
 
-  Future<List<dynamic>> _okuListe(String anahtar) async {
-    final metin = await _metinOku(anahtar);
-    if (metin == null || metin.isEmpty) return const [];
+  /// Kayıt yoksa boş liste; bozuksa [VeriBozukHatasi] (boş sayılmaz).
+  Future<List<dynamic>> _okuListe(String anahtar) async =>
+      _listeCoz(await _metinOku(anahtar), anahtar);
+
+  List<dynamic> _listeCoz(String? metin, String anahtar) {
+    if (metin == null || metin.isEmpty) return [];
     try {
-      return jsonDecode(metin) as List<dynamic>;
+      return List<dynamic>.of(jsonDecode(metin) as List<dynamic>);
     } catch (_) {
-      return const [];
+      throw VeriBozukHatasi(anahtar);
     }
   }
 
-  Future<void> _yaz(String anahtar, Object deger) => _kol.doc(anahtar).set({
-        'j': jsonEncode(deger),
-        'g': FieldValue.serverTimestamp(),
+  /// Firestore doküman sınırı 1 MiB'tir; alan adları ve üst veri payı için
+  /// JSON metni bunun altında tutulur.
+  static const int _enFazlaBayt = 1000000;
+
+  Map<String, dynamic> _dokuman(String anahtar, Object deger) {
+    final metin = jsonEncode(deger);
+    final bayt = utf8.encode(metin).length;
+    if (bayt > _enFazlaBayt) throw VeriCokBuyukHatasi(anahtar, bayt);
+    return {'j': metin, 'g': FieldValue.serverTimestamp()};
+  }
+
+  Future<void> _yaz(String anahtar, Object deger) async =>
+      _kol.doc(anahtar).set(_dokuman(anahtar, deger));
+
+  /// Liste dokümanında "oku → değiştir → yaz" işlemini tek transaction'da
+  /// yapar. İki cihaz aynı anda kaydederse biri diğerinin değişikliğini
+  /// ezmez: çakışan transaction yeniden denenir ve güncel listeyi görür.
+  /// [degistir] listeyi yerinde değiştirir; false dönerse yazılmaz.
+  /// (Transaction sunucu gerektirir; çevrimdışıyken hata verir — sessizce
+  /// eski veri üzerine yazmaktansa kullanıcı uyarılır.)
+  Future<void> _listeGuncelle(
+      String anahtar, bool Function(List<dynamic> liste) degistir) {
+    final ref = _kol.doc(anahtar);
+    return _db.runTransaction((tx) async {
+      final snap = await tx.get(ref);
+      final liste = _listeCoz(snap.data()?['j'] as String?, anahtar);
+      if (!degistir(liste)) return;
+      tx.set(ref, _dokuman(anahtar, liste));
+    });
+  }
+
+  /// Listede [idAlani] = [id] olan kaydı değiştirir, yoksa sona ekler.
+  Future<void> _kayitKaydet(String anahtar, String idAlani, String id,
+          Map<String, dynamic> kayit) =>
+      _listeGuncelle(anahtar, (liste) {
+        final i = liste.indexWhere((e) => e is Map && e[idAlani] == id);
+        if (i == -1) {
+          liste.add(kayit);
+        } else {
+          liste[i] = kayit;
+        }
+        return true;
+      });
+
+  /// Listeden [idAlani] = [id] olan kaydı siler. [bosKalabilir] false ise
+  /// liste boşalacaksa hiçbir şey yazılmaz.
+  Future<void> _kayitSil(String anahtar, String idAlani, String id,
+          {bool bosKalabilir = true}) =>
+      _listeGuncelle(anahtar, (liste) {
+        liste.removeWhere((e) => e is Map && e[idAlani] == id);
+        return bosKalabilir || liste.isNotEmpty;
       });
 
   /// Doküman kimliği [onEk] ile başlayan tüm kayıtlar.
@@ -134,11 +186,6 @@ class FirestoreServis implements VeriServisi, YedeklenebilirServis {
         return Personel.haritadan((m['id'] ?? '') as String, m);
       }).toList();
 
-  Future<void> _personelleriYaz(String kurumId, List<Personel> liste) => _yaz(
-        _personelAnahtari(kurumId),
-        liste.map((p) => {'id': p.id, ...p.haritasi}).toList(),
-      );
-
   @override
   Future<List<Personel>> personelleriGetir(String kurumId) async =>
       (await _tumPersoneller(kurumId))
@@ -147,23 +194,13 @@ class FirestoreServis implements VeriServisi, YedeklenebilirServis {
         ..sort((a, b) => a.sira.compareTo(b.sira));
 
   @override
-  Future<void> personelKaydet(String kurumId, Personel personel) async {
-    final liste = await _tumPersoneller(kurumId);
-    final i = liste.indexWhere((p) => p.id == personel.id);
-    if (i == -1) {
-      liste.add(personel);
-    } else {
-      liste[i] = personel;
-    }
-    await _personelleriYaz(kurumId, liste);
-  }
+  Future<void> personelKaydet(String kurumId, Personel personel) =>
+      _kayitKaydet(_personelAnahtari(kurumId), 'id', personel.id,
+          {'id': personel.id, ...personel.haritasi});
 
   @override
-  Future<void> personelSil(String kurumId, String personelId) async {
-    final liste = await _tumPersoneller(kurumId);
-    liste.removeWhere((p) => p.id == personelId);
-    await _personelleriYaz(kurumId, liste);
-  }
+  Future<void> personelSil(String kurumId, String personelId) =>
+      _kayitSil(_personelAnahtari(kurumId), 'id', personelId);
 
   // --- AY KAYDI --------------------------------------------------------------
   @override
@@ -183,14 +220,14 @@ class FirestoreServis implements VeriServisi, YedeklenebilirServis {
       kayit.haritasi,
     );
     if (kayit.versiyon.isNotEmpty) {
-      final liste =
-          (await _okuListe(_versiyonAnahtari(kurumId, kayit.yil, kayit.ay)))
-              .map((e) => e.toString())
-              .toSet();
-      if (liste.add(kayit.versiyon)) {
-        await _yaz(_versiyonAnahtari(kurumId, kayit.yil, kayit.ay),
-            liste.toList()..sort());
-      }
+      await _listeGuncelle(_versiyonAnahtari(kurumId, kayit.yil, kayit.ay),
+          (liste) {
+        if (liste.contains(kayit.versiyon)) return false;
+        liste
+          ..add(kayit.versiyon)
+          ..sort((a, b) => a.toString().compareTo(b.toString()));
+        return true;
+      });
     }
   }
 
@@ -213,29 +250,14 @@ class FirestoreServis implements VeriServisi, YedeklenebilirServis {
       }).toList()
         ..sort((a, b) => b.tarih.compareTo(a.tarih));
 
-  Future<void> _duyurulariYaz(String kurumId, List<Duyuru> liste) => _yaz(
-        _duyuruAnahtari(kurumId),
-        liste.map((d) => {'id': d.id, ...d.haritasi}).toList(),
-      );
+  @override
+  Future<void> duyuruKaydet(String kurumId, Duyuru duyuru) =>
+      _kayitKaydet(_duyuruAnahtari(kurumId), 'id', duyuru.id,
+          {'id': duyuru.id, ...duyuru.haritasi});
 
   @override
-  Future<void> duyuruKaydet(String kurumId, Duyuru duyuru) async {
-    final liste = await duyurulariGetir(kurumId);
-    final i = liste.indexWhere((d) => d.id == duyuru.id);
-    if (i == -1) {
-      liste.add(duyuru);
-    } else {
-      liste[i] = duyuru;
-    }
-    await _duyurulariYaz(kurumId, liste);
-  }
-
-  @override
-  Future<void> duyuruSil(String kurumId, String duyuruId) async {
-    final liste = await duyurulariGetir(kurumId);
-    liste.removeWhere((d) => d.id == duyuruId);
-    await _duyurulariYaz(kurumId, liste);
-  }
+  Future<void> duyuruSil(String kurumId, String duyuruId) =>
+      _kayitSil(_duyuruAnahtari(kurumId), 'id', duyuruId);
 
   // --- DUYURU OKUMA ----------------------------------------------------------
   String _duyuruOkumaAnahtari(String kurumId, String uid) =>
@@ -276,17 +298,14 @@ class FirestoreServis implements VeriServisi, YedeklenebilirServis {
           .where((k) => k.uid.isNotEmpty)
           .toList();
 
-  Future<void> _kullanicilariYaz(String kurumId, List<Kullanici> liste) => _yaz(
-        _kullaniciAnahtari(kurumId),
-        liste.map((k) => {'uid': k.uid, ...k.haritasi}).toList(),
-      );
-
   @override
   Future<List<Kullanici>> kullanicilariGetir(String kurumId) async {
     final liste = await _kullanicilariOku(kurumId);
     if (liste.isNotEmpty) return liste;
 
-    // İlk açılış: varsayılan yönetici oluştur
+    // İlk açılış: varsayılan yönetici oluştur. Transaction içinde ve yalnızca
+    // liste hâlâ boşsa — iki cihaz aynı anda açılırsa biri diğerinin
+    // oluşturduğu (ve belki hemen düzenlediği) yöneticiyi ezmez.
     final varsayilan = Kullanici(
       uid: 'yonetici',
       ad: 'Yönetici',
@@ -294,32 +313,23 @@ class FirestoreServis implements VeriServisi, YedeklenebilirServis {
       rol: Rol.yonetici,
       kurumId: kurumId,
     );
-    await _kullanicilariYaz(kurumId, [varsayilan]);
-    return [varsayilan];
+    await _listeGuncelle(_kullaniciAnahtari(kurumId), (l) {
+      if (l.isNotEmpty) return false;
+      l.add({'uid': varsayilan.uid, ...varsayilan.haritasi});
+      return true;
+    });
+    return _kullanicilariOku(kurumId);
   }
 
   @override
-  Future<void> kullaniciKaydet(String kurumId, Kullanici kullanici) async {
-    final liste = await _kullanicilariOku(kurumId);
-    final i = liste.indexWhere((k) => k.uid == kullanici.uid);
-    if (i == -1) {
-      liste.add(kullanici);
-    } else {
-      liste[i] = kullanici;
-    }
-    await _kullanicilariYaz(kurumId, liste);
-  }
+  Future<void> kullaniciKaydet(String kurumId, Kullanici kullanici) =>
+      _kayitKaydet(_kullaniciAnahtari(kurumId), 'uid', kullanici.uid,
+          {'uid': kullanici.uid, ...kullanici.haritasi});
 
   @override
-  Future<void> kullaniciSil(String kurumId, String uid) async {
-    final liste = await _kullanicilariOku(kurumId);
-    liste.removeWhere((k) => k.uid == uid);
-    if (liste.isEmpty) return; // son kullanıcı silinemez
-    await _kullanicilariYaz(kurumId, liste);
-  }
-
-  @override
-  Future<void> kullaniciRolGuncelle(String uid, Rol rol) async {}
+  Future<void> kullaniciSil(String kurumId, String uid) =>
+      // Son kullanıcı silinemez.
+      _kayitSil(_kullaniciAnahtari(kurumId), 'uid', uid, bosKalabilir: false);
 
   // --- BORDRO ----------------------------------------------------------------
   @override
@@ -344,28 +354,14 @@ class FirestoreServis implements VeriServisi, YedeklenebilirServis {
           .where((u) => u.personelId.isNotEmpty)
           .toList();
 
-  Future<void> _ucretleriYaz(String birimId, List<PersonelUcreti> liste) =>
-      _yaz(_ucretAnahtari(birimId), liste.map((u) => u.haritasi).toList());
+  @override
+  Future<void> personelUcretiKaydet(String birimId, PersonelUcreti ucret) =>
+      _kayitKaydet(_ucretAnahtari(birimId), 'personelId', ucret.personelId,
+          ucret.haritasi);
 
   @override
-  Future<void> personelUcretiKaydet(
-      String birimId, PersonelUcreti ucret) async {
-    final liste = await personelUcretleriGetir(birimId);
-    final i = liste.indexWhere((u) => u.personelId == ucret.personelId);
-    if (i == -1) {
-      liste.add(ucret);
-    } else {
-      liste[i] = ucret;
-    }
-    await _ucretleriYaz(birimId, liste);
-  }
-
-  @override
-  Future<void> personelUcretiSil(String birimId, String personelId) async {
-    final liste = await personelUcretleriGetir(birimId);
-    liste.removeWhere((u) => u.personelId == personelId);
-    await _ucretleriYaz(birimId, liste);
-  }
+  Future<void> personelUcretiSil(String birimId, String personelId) =>
+      _kayitSil(_ucretAnahtari(birimId), 'personelId', personelId);
 
   @override
   Future<BordroSonucu?> bordroGetir(

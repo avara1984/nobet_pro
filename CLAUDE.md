@@ -100,6 +100,13 @@ tanımaz. Bu tek yönlü bağımlılığı koru.
   `FieldPath.documentId` aralık sorgusuyla yapılır. Yeni bir anahtar öneki
   eklersen hem `YerelServis.tumVeriyiDisaAktar` hem
   `FirestoreServis.tumVeriyiDisaAktar` listelerine eklemeyi unutma.
+- `firestore.rules` (repo kökü) — Firestore güvenlik kuralları;
+  `firebase deploy --only firestore:rules` ile yayınlanır. Aynı projeyi
+  eski uygulama da kullandığı için genel (`/{kol}/{belge=**}`) kuralda
+  `nobet_pro`, `ny_kullanicilar` ve `fcm_tokens` **açıkça hariç tutulur** —
+  Firestore kuralları birbirini tamamladığından hariç tutulmazlarsa genel
+  "okuma açık" kuralı bu koleksiyonları da giriş yapmadan okunur kılar.
+  Konsoldan değişiklik yaparsan dosyayı da güncelle.
 - `firebase_options.dart` — FlutterFire CLI çıktısı (eski uygulamayla aynı
   `nobet-sistemi` projesi). Elle düzenlenmez.
 - `pdf_servis.dart` — yatay A4 nöbet listesi PDF'i + yazdırma (`printing` paketi).

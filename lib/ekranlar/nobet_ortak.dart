@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../core/tema.dart';
@@ -12,6 +13,18 @@ import '../servisler/giris_servisi.dart';
 
 /// Tablo başlık satırının yüksekliği.
 const double kNobetBaslikY = 37;
+
+/// Yalnızca Android uygulamasında vardiya (kapsül) yazısına eklenen punto —
+/// telefonda okunurluk için. Web/Windows'ta 0.
+///
+/// Taşmaz (gerçek Roboto Bold ölçümü, kapsülün içinde kalan alana göre):
+///  * Nöbet Listesi, en dar otomatik sığdırma (sütun 64 px, yazı 8,66 → 9,16):
+///    en uzun etiket 48,0 → 50,8 px, alan 57 px (pay ≈ 6 px).
+///  * Haftalık Nöbet / Haftalık 15-14 / 15 - 14 Nöbet (sütun 85 px, yazı
+///    11,5 → 12,0; boşluklu etiket): 69,5 → 72,5 px, alan 76 px (pay ≈ 3,5 px).
+/// Test: test/nobet_ekranlari_test.dart ("Android vardiya yazısı").
+double get nobetAndroidYaziEki =>
+    !kIsWeb && defaultTargetPlatform == TargetPlatform.android ? .5 : 0;
 
 /// Hücreler arası ince çizgi rengi.
 /// Tablo iç çizgileri — [Tema.kenar] bu yoğun ızgarada neredeyse

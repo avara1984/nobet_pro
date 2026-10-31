@@ -248,19 +248,25 @@ void main() {
           textTheme: Tema.acik.textTheme.apply(fontFamily: 'RobotoTest'));
     }
 
-    Future<void> kontrol(WidgetTester t, TargetPlatform platform,
-        double beklenenPunto) async {
+    /// [ekran] çizilir; [desen]e uyan her vardiya yazısının punto boyu
+    /// [beklenenPunto] olmalı ve kırpılmamalı (didExceedMaxLines == false).
+    Future<void> kontrol(WidgetTester t, TargetPlatform platform, Widget ekran,
+        RegExp desen, double beklenenPunto,
+        {double genislik = 1800}) async {
       final tema = await robotoTema();
       debugDefaultTargetPlatformOverride = platform;
       try {
-        final (nd, o) = await kur();
-        // 560 px: personel sütunları otomatik sığdırmada en dar sınıra (64 px) iner.
-        await ciz(t, nd, o, const NobetListesiEkrani(genis: true),
-            tema: tema, genislik: 560);
+        // 15 - 14 dönemi 15'inden başlar: 16-17'sine de vardiya yazılır.
+        final (nd, o) = await kur(ek: [
+          (16, 'p1', kGunduz12),
+          (16, 'p2', kGece12),
+          (17, 'p1', kGece8),
+          (17, 'p2', kGunduz12),
+        ]);
+        await ciz(t, nd, o, ekran, tema: tema, genislik: genislik);
 
-        final etiket = RegExp(r'^\d\d:\d\d-\d\d:\d\d$');
         final kapsuller = find.byWidgetPredicate(
-            (w) => w is Text && w.data != null && etiket.hasMatch(w.data!));
+            (w) => w is Text && w.data != null && desen.hasMatch(w.data!));
         expect(kapsuller, findsWidgets, reason: 'kapsül yazıları görünmeli');
 
         for (final e in kapsuller.evaluate()) {
@@ -269,7 +275,7 @@ void main() {
               reason: '${yazi.data} punto');
           final cizim = e.renderObject! as RenderParagraph;
           expect(cizim.didExceedMaxLines, isFalse,
-              reason: '${yazi.data} kırpılmamalı (sütun 64 px)');
+              reason: '${yazi.data} kırpılmamalı');
         }
         await bitir(t, nd);
       } finally {
@@ -277,12 +283,31 @@ void main() {
       }
     }
 
-    testWidgets('Android: 8,66 + 0,5 = 9,16 punto ve en dar sütunda kırpılmaz', (t) async {
-      await kontrol(t, TargetPlatform.android, 11.5 * (64 / 85) + .5);
-    });
+    // Nöbet Listesi: telefonda en dar otomatik sığdırma (64 px, boşluksuz etiket).
+    final bosluksuz = RegExp(r'^\d\d:\d\d-\d\d:\d\d$');
+    // Haftalık ekranlar: sabit 85 px sütun, boşluklu etiket.
+    final bosluklu = RegExp(r'^\d\d:\d\d - \d\d:\d\d$');
+    const liste = NobetListesiEkrani(genis: true);
+    const haftalik = HaftalikNobetEkrani(key: ValueKey('a1'), genis: true);
+    const haftalik1514 =
+        HaftalikNobetEkrani(key: ValueKey('a2'), genis: true, donem: true);
+    const donem = DonemNobetEkrani(genis: true);
+    const listeOlcek = 11.5 * (64 / 85);
 
-    testWidgets('Windows: yazı boyutu değişmez (8,66)', (t) async {
-      await kontrol(t, TargetPlatform.windows, 11.5 * (64 / 85));
-    });
+    for (final (ad, ekran, desen, taban, genislik) in <(String, Widget, RegExp, double, double)>[
+      ('Nöbet Listesi', liste, bosluksuz, listeOlcek, 560),
+      ('Haftalık Nöbet', haftalik, bosluklu, 11.5, 1800),
+      ('Haftalık 15-14', haftalik1514, bosluklu, 11.5, 1800),
+      ('15 - 14 Nöbet', donem, bosluklu, 11.5, 1800),
+    ]) {
+      testWidgets('Android: $ad vardiya yazısı +0,5 punto ve kırpılmaz', (t) async {
+        await kontrol(t, TargetPlatform.android, ekran, desen, taban + .5,
+            genislik: genislik);
+      });
+      testWidgets('Windows: $ad vardiya yazısı değişmez', (t) async {
+        await kontrol(t, TargetPlatform.windows, ekran, desen, taban,
+            genislik: genislik);
+      });
+    }
   });
 }

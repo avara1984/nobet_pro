@@ -909,7 +909,7 @@ class _HaftalikNobetEkraniState extends State<HaftalikNobetEkrani>
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                        fontSize: 11.5,
+                        fontSize: 11.5 + nobetAndroidYaziEki,
                         fontWeight: FontWeight.w700,
                         color: boya.yazi),
                   ),
@@ -919,7 +919,7 @@ class _HaftalikNobetEkraniState extends State<HaftalikNobetEkrani>
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 11.5,
+                    fontSize: 11.5 + nobetAndroidYaziEki,
                     fontWeight: FontWeight.w400,
                     color: boya.yazi,
                   ),

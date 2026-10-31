@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -996,6 +997,15 @@ class _NobetListesiEkraniState extends State<NobetListesiEkrani>
     );
   }
 
+  /// Yalnızca Android uygulamasında vardiya yazısı 0,5 punto büyütülür
+  /// (telefonda okunurluk). Taşmaz: telefonun en dar düzeninde (sütun 64 px,
+  /// ölçek 64/85) yazı 8,66 → 9,16 punto olur; en uzun etiket "08:00-16:00"
+  /// Roboto Bold ile 48,0 px'ten 50,8 px'e çıkar, kapsülün içinde kalan alan
+  /// 57 px'tir (yaklaşık 6 px pay).
+  /// Test: test/nobet_ekranlari_test.dart ("Android vardiya yazısı").
+  double get _androidYaziEki =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.android ? .5 : 0;
+
   Widget _vardiyaHucre(NobetDurumu d, int gun, Personel p,
       {bool vurgu = false,
       bool tatil = false,
@@ -1016,7 +1026,7 @@ class _NobetListesiEkraniState extends State<NobetListesiEkrani>
     final gorunen = olcek < .95 ? etiket.replaceAll(' - ', '-') : etiket;
     final koyu = Theme.of(context).brightness == Brightness.dark;
     final boya = vardiyaBoyasi(kod.isEmpty ? kNobetIzni : kod, koyu: koyu);
-    final yaziBoyu = dar ? 9.5 : 11.5 * olcek;
+    final yaziBoyu = (dar ? 9.5 : 11.5 * olcek + _androidYaziEki);
 
     return InkWell(
       onTap: duzenlenebilir ? () => _vardiyaSec(d, gun, p) : null,

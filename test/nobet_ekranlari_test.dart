@@ -1,4 +1,9 @@
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nobet_pro/core/tema.dart';
 import 'package:nobet_pro/durum/nobet_durumu.dart';
@@ -54,8 +59,9 @@ void main() {
     return (nd, oturum);
   }
 
-  Future<void> ciz(WidgetTester t, NobetDurumu nd, OturumDurumu o, Widget ekran) async {
-    t.view.physicalSize = const Size(1800, 1000);
+  Future<void> ciz(WidgetTester t, NobetDurumu nd, OturumDurumu o, Widget ekran,
+      {ThemeData? tema, double genislik = 1800}) async {
+    t.view.physicalSize = Size(genislik, 1000);
     t.view.devicePixelRatio = 1;
     addTearDown(t.view.reset);
     await t.pumpWidget(MultiProvider(
@@ -63,7 +69,7 @@ void main() {
         ChangeNotifierProvider<NobetDurumu>.value(value: nd),
         ChangeNotifierProvider<OturumDurumu>.value(value: o),
       ],
-      child: MaterialApp(theme: Tema.acik, home: Scaffold(body: ekran)),
+      child: MaterialApp(theme: tema ?? Tema.acik, home: Scaffold(body: ekran)),
     ));
     // Yanıp sönen "!" animasyonu yüzünden pumpAndSettle kullanılmaz.
     for (var i = 0; i < 6; i++) {
@@ -228,4 +234,55 @@ void main() {
       await bitir(t, nd);
     });
   }
+
+  // --- Android'de vardiya yazısı +0,5 punto, en dar sütunda taşmaz --------------
+  group('Android vardiya yazısı', () {
+    // Gerçek ölçü için Roboto Bold yüklenir (testte varsayılan yazı tipi her
+    // harfi punto kadar geniş çizer, taşma ölçülemez).
+    Future<ThemeData> robotoTema() async {
+      final yukleyici = FontLoader('RobotoTest')
+        ..addFont(Future.value(
+            ByteData.sublistView(File('assets/fonts/Roboto-Bold.ttf').readAsBytesSync())));
+      await yukleyici.load();
+      return Tema.acik.copyWith(
+          textTheme: Tema.acik.textTheme.apply(fontFamily: 'RobotoTest'));
+    }
+
+    Future<void> kontrol(WidgetTester t, TargetPlatform platform,
+        double beklenenPunto) async {
+      final tema = await robotoTema();
+      debugDefaultTargetPlatformOverride = platform;
+      try {
+        final (nd, o) = await kur();
+        // 560 px: personel sütunları otomatik sığdırmada en dar sınıra (64 px) iner.
+        await ciz(t, nd, o, const NobetListesiEkrani(genis: true),
+            tema: tema, genislik: 560);
+
+        final etiket = RegExp(r'^\d\d:\d\d-\d\d:\d\d$');
+        final kapsuller = find.byWidgetPredicate(
+            (w) => w is Text && w.data != null && etiket.hasMatch(w.data!));
+        expect(kapsuller, findsWidgets, reason: 'kapsül yazıları görünmeli');
+
+        for (final e in kapsuller.evaluate()) {
+          final yazi = e.widget as Text;
+          expect(yazi.style!.fontSize, closeTo(beklenenPunto, .001),
+              reason: '${yazi.data} punto');
+          final cizim = e.renderObject! as RenderParagraph;
+          expect(cizim.didExceedMaxLines, isFalse,
+              reason: '${yazi.data} kırpılmamalı (sütun 64 px)');
+        }
+        await bitir(t, nd);
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    }
+
+    testWidgets('Android: 8,66 + 0,5 = 9,16 punto ve en dar sütunda kırpılmaz', (t) async {
+      await kontrol(t, TargetPlatform.android, 11.5 * (64 / 85) + .5);
+    });
+
+    testWidgets('Windows: yazı boyutu değişmez (8,66)', (t) async {
+      await kontrol(t, TargetPlatform.windows, 11.5 * (64 / 85));
+    });
+  });
 }

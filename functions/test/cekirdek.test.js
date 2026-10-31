@@ -150,6 +150,16 @@ test('geçiş: özetler gizli depoya taşınır, kayıttan silinir, yedek alın�
     'yedekte eski özet bulunmalı (geri dönüş için)');
 });
 
+test('kimlik+şifreyle yönetici doğrulama: yönetici geçer, personel ve yanlış şifre geçmez', async () => {
+  const s = eskiKurulum();
+  const k = await c.yoneticiyiDogrula(s.ctx, {kurumId: KURUM, kimlik: TC_ALI, sifre: 'sifre123'});
+  assert.deepEqual(k, {uid: 'admin', rol: 'yonetici'});
+  assert.equal((await hataDurumu(c.yoneticiyiDogrula(s.ctx,
+    {kurumId: KURUM, kimlik: TC_VELI, sifre: 'veli1234'}))).durum, 403);
+  assert.equal((await hataDurumu(c.yoneticiyiDogrula(s.ctx,
+    {kurumId: KURUM, kimlik: TC_ALI, sifre: 'yanlis'}))).durum, 401);
+});
+
 test('geçiş yalnızca yöneticiye açık ve tekrar çalıştırılabilir', async () => {
   const s = eskiKurulum();
   assert.equal((await hataDurumu(c.sifreleriTasi(s.ctx, {rol: 'editor'}, {kurumId: KURUM}))).durum, 403);

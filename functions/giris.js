@@ -40,7 +40,12 @@ async function tokenDogrula(baslik) {
   return cozulen;
 }
 
-function uc(isle, {tokenGerekli = false} = {}) {
+/**
+ * [token]: false (yok), 'zorunlu' (ID token şart) veya 'istege-bagli'
+ * (başlık varsa doğrulanır, yoksa kimlik null gelir ve işlev kendi
+ * doğrulamasını yapar).
+ */
+function uc(isle, {token = false} = {}) {
   return onRequest(SECENEKLER, async (req, res) => {
     if (req.method !== 'POST') {
       res.status(405).json({hata: 'Yalnızca POST kabul edilir.'});
@@ -48,7 +53,10 @@ function uc(isle, {tokenGerekli = false} = {}) {
     }
     try {
       const govde = req.body && typeof req.body === 'object' ? req.body : {};
-      const kimlik = tokenGerekli ? await tokenDogrula(req.get('Authorization')) : null;
+      const baslik = req.get('Authorization');
+      const kimlik = token === 'zorunlu' || (token === 'istege-bagli' && baslik)
+        ? await tokenDogrula(baslik)
+        : null;
       res.json(await isle(baglam(), govde, kimlik));
     } catch (e) {
       if (e instanceof cekirdek.Hata) {
@@ -65,6 +73,9 @@ exports.npDurum = uc((c, g) => cekirdek.durum(c, g));
 exports.npGiris = uc((c, g) => cekirdek.girisYap(c, g));
 exports.npUyeOl = uc((c, g) => cekirdek.uyeOl(c, g));
 exports.npYoneticiOlustur = uc((c, g) => cekirdek.yoneticiOlustur(c, g));
-exports.npBen = uc((c, g, k) => cekirdek.ben(c, k, g), {tokenGerekli: true});
-exports.npSifreAyarla = uc((c, g, k) => cekirdek.sifreAyarla(c, k, g), {tokenGerekli: true});
-exports.npSifreleriTasi = uc((c, g, k) => cekirdek.sifreleriTasi(c, k, g), {tokenGerekli: true});
+exports.npBen = uc((c, g, k) => cekirdek.ben(c, k, g), {token: 'zorunlu'});
+exports.npSifreAyarla = uc((c, g, k) => cekirdek.sifreAyarla(c, k, g), {token: 'zorunlu'});
+// Geçiş betiği: ID token yoksa gövdedeki yönetici kimliği + şifresiyle doğrulanır.
+exports.npSifreleriTasi = uc(
+  async (c, g, k) => cekirdek.sifreleriTasi(c, k || await cekirdek.yoneticiyiDogrula(c, g), g),
+  {token: 'istege-bagli'});

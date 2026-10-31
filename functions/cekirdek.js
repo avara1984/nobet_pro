@@ -350,6 +350,19 @@ async function yoneticiOlustur(ctx, {kurumId, ad, kimlik, sifre: parola}) {
   return oturumAc(ctx, kurum, olusan);
 }
 
+/**
+ * ID token'ı olmayan tek seferlik işlemler (geçiş betiği) için: kimlik + şifre
+ * ile yönetici doğrular. Giriş ile aynı yoldan geçtiği için hız sınırı ve
+ * hesap durumu kontrolleri de uygulanır.
+ */
+async function yoneticiyiDogrula(ctx, {kurumId, kimlik, sifre: parola}) {
+  const sonuc = await girisYap(ctx, {kurumId, kimlik, sifre: parola});
+  if (etkinAlanlar(sonuc.kullanici).rol !== 'yonetici') {
+    throw new Hata(403, 'Bu işlem için yönetici yetkisi gerekir.');
+  }
+  return {uid: sonuc.kullanici.uid, rol: 'yonetici'};
+}
+
 function yoneticiGerekli(kimlikBilgisi) {
   if (kimlikBilgisi.rol !== 'yonetici') throw new Hata(403, 'Bu işlem için yönetici yetkisi gerekir.');
 }
@@ -410,6 +423,7 @@ async function sifreleriTasi(ctx, kimlikBilgisi, {kurumId}) {
 
 module.exports = {
   Hata, durum, girisYap, ben, uyeOl, yoneticiOlustur, sifreAyarla, sifreleriTasi,
+  yoneticiyiDogrula,
   // testler için
   etkinAlanlar, acikProfil, DENEME_SINIRI,
 };

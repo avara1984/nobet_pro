@@ -197,6 +197,14 @@ Profil, `Kullanici` üzerindeki `rol` / `sadecePdf` / `kisitliBirim` alanların�
   kullanır — mantığı iki yerde tekrarlama. Ayın son günündeki gece vardiyasının
   fazla mesaisi kasıtlı olarak 0 döner, bir sonraki ayın hesabına
   `oncekiAydanSarkanFazlaMesai()` ile devredilir (çift sayılmasın diye).
+- `dinlenme_kurali.dart` — nöbet dinlenme kuralı, İKİ yönde: `dinlenmeIhlaliMetni`
+  (bir önceki gün gece ise bugüne gündüz yazılamaz) ve
+  `ertesiGunDinlenmeIhlaliMetni` (ters yön: yazılan gece vardiyasının ertesi
+  günü zaten gündüz yazılıysa uyarı). Üç nöbet ekranı da ikisini birlikte
+  çağırır (`d.ertesiGunIhlali` / `_sonrakiKod`); ters yön yalnızca gerçek
+  çalışma vardiyalarını ihlal sayar, izin/tatil kodlarını saymaz. Yeni bir
+  yazma yolu eklersen ikisini de çağır. Test: `test/nobet_ekranlari_test.dart`
+  (gerçek tıklama akışı) ve `test/dinlenme_kurali_test.dart`.
 - `tarih.dart` — `intl` paketi kullanmadan Türkçe tarih/gün/ay biçimlendirme (`T` sınıfı).
 
 ### Modeller (`modeller/modeller.dart`)

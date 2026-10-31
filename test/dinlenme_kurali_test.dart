@@ -104,4 +104,69 @@ void main() {
       );
     });
   });
+
+  // Ters yön: yazılan vardiyadan çıkan personelin ERTESİ günü dolu mu?
+  group('ertesiGunDinlenmeIhlaliMetni', () {
+    String? ihlal(String yeni, String? sonraki) => ertesiGunDinlenmeIhlaliMetni(
+        personelAdi: 'Ali Veli', yeniKod: yeni, sonrakiKod: sonraki);
+
+    test('3 Aralık 08:00-20:00 varken 2 Aralık\'a 20:00-08:00 → ihlal', () {
+      final uyari = ihlal(kGece12, kGunduz12);
+      expect(uyari, isNotNull);
+      expect(uyari, contains('Ali Veli'));
+      expect(uyari, contains(kGece12));
+      expect(uyari, contains(kGunduz12));
+    });
+
+    test('3 Aralık 08:00-20:00 varken 2 Aralık\'a 24:00-08:00 → ihlal', () {
+      expect(ihlal(kGece8, kGunduz12), isNotNull);
+    });
+
+    test('20:00-08:00 yazılan günün ertesi sabah/akşam/mesai → ihlal', () {
+      for (final s in [kGunduz12, kSabah8, kAksam8, kMesai]) {
+        expect(ihlal(kGece12, s), isNotNull, reason: s);
+      }
+    });
+
+    test('20:00-08:00 → ertesi gün yine gece ihlal değil', () {
+      expect(ihlal(kGece12, kGece12), isNull);
+      expect(ihlal(kGece12, kGece8), isNull);
+    });
+
+    test('24:00-08:00 yazılan günün ertesi: yalnızca yine 24:00-08:00 serbest', () {
+      expect(ihlal(kGece8, kGece8), isNull);
+      expect(ihlal(kGece8, kGece12), isNotNull);
+      for (final s in [kGunduz12, kSabah8, kAksam8, kMesai]) {
+        expect(ihlal(kGece8, s), isNotNull, reason: s);
+      }
+    });
+
+    test('ertesi gün boş / izin / tatil ise uyarı yok', () {
+      for (final s in ['', kNobetIzni, kYillikIzin, kIdariIzin, kHaftaTatili, kResmiTatil]) {
+        expect(ihlal(kGece12, s), isNull, reason: 'gece12 → "$s"');
+        expect(ihlal(kGece8, s), isNull, reason: 'gece8 → "$s"');
+      }
+      expect(ihlal(kGece12, null), isNull);
+    });
+
+    test('yazılan vardiya gece değilse ertesi güne bakılmaz', () {
+      for (final yeni in [kGunduz12, kSabah8, kAksam8, kMesai, kYillikIzin, '']) {
+        expect(ihlal(yeni, kGunduz12), isNull, reason: yeni);
+        expect(ihlal(yeni, kGece12), isNull, reason: yeni);
+      }
+    });
+
+    test('ileri yön ile tutarlı: ileri kural ihlal diyorsa ters kural da der (çalışma vardiyaları)', () {
+      const calisma = [kGunduz12, kGece12, kGece8, kSabah8, kAksam8, kMesai];
+      for (final a in calisma) {
+        for (final b in calisma) {
+          final ileri = dinlenmeIhlaliMetni(
+              personelAdi: 'x', oncekiKod: a, yeniKod: b);
+          final ters = ertesiGunDinlenmeIhlaliMetni(
+              personelAdi: 'x', yeniKod: a, sonrakiKod: b);
+          expect(ters != null, ileri != null, reason: '$a → $b');
+        }
+      }
+    });
+  });
 }

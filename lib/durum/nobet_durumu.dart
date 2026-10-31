@@ -653,6 +653,24 @@ class NobetDurumu extends ChangeNotifier {
     );
   }
 
+  /// [dinlenmeIhlali]'nin ters yönü: [gun]'e yazılmak istenen vardiyadan
+  /// çıkan personelin ERTESİ günü zaten yasaklı bir vardiya yazılıysa uyarı
+  /// metni, yoksa null döner (ör. 3'ünde 08:00-20:00 varken 2'sine gece yazmak).
+  /// Ayın son günü için ertesi ay yüklü olmadığından kontrol atlanır.
+  String? ertesiGunIhlali(int gun, String personelId, String yeniKod) {
+    if (gun >= gunSayisi) return null;
+    final sonraki = _kayit.kod(gun + 1, personelId);
+    final p = _personeller.firstWhere(
+      (x) => x.id == personelId,
+      orElse: () => Personel(id: '', ad: 'Personel'),
+    );
+    return ertesiGunDinlenmeIhlaliMetni(
+      personelAdi: p.ad,
+      yeniKod: yeniKod,
+      sonrakiKod: sonraki,
+    );
+  }
+
   // ---------------------------------------------------------------------------
   // OTOMATİK LİSTE — 8 günlük döngü
   // ---------------------------------------------------------------------------

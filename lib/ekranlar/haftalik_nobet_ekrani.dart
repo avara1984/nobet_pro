@@ -975,6 +975,13 @@ class _HaftalikNobetEkraniState extends State<HaftalikNobetEkrani>
     return kayit?.kod(onceki.day, personelId);
   }
 
+  /// Ertesi günün kodu; o gün yüklü değilse null (kontrol sessizce atlanır).
+  String? _sonrakiKod(DateTime tarih, String personelId) {
+    final sonraki = tarih.add(const Duration(days: 1));
+    final kayit = _kayitIcin(sonraki);
+    return kayit?.kod(sonraki.day, personelId);
+  }
+
   Future<void> _vardiyaSec(NobetDurumu d, DateTime tarih, Personel p) async {
     final kayit = _kayitIcin(tarih);
     if (kayit == null) return;
@@ -1043,11 +1050,18 @@ class _HaftalikNobetEkraniState extends State<HaftalikNobetEkrani>
                       }
                     }
 
+                    // Hem önceki gün (gece → bugün) hem ertesi gün (bugün → yarın)
+                    // yönündeki dinlenme kuralı denetlenir.
                     final uyari = dinlenmeIhlaliMetni(
-                      personelAdi: p.ad,
-                      oncekiKod: _oncekiKod(tarih, p.id),
-                      yeniKod: v.kod,
-                    );
+                          personelAdi: p.ad,
+                          oncekiKod: _oncekiKod(tarih, p.id),
+                          yeniKod: v.kod,
+                        ) ??
+                        ertesiGunDinlenmeIhlaliMetni(
+                          personelAdi: p.ad,
+                          yeniKod: v.kod,
+                          sonrakiKod: _sonrakiKod(tarih, p.id),
+                        );
                     if (uyari == null) {
                       kayit.ata(tarih.day, p.id, v.kod);
                       _ayKirletVeMotoruAt(tarih);

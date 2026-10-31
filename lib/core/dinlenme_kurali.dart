@@ -37,3 +37,38 @@ String? dinlenmeIhlaliMetni({
       'Sabah 08:00’de çıkan personel yeterli dinlenme süresi olmadan '
       '$yeniKod vardiyasına devam edemez.';
 }
+
+/// [dinlenmeIhlaliMetni]'nin TERS yönü: yazılmak istenen vardiyadan ([yeniKod])
+/// çıkan personelin ERTESİ gün zaten yazılı bir vardiyası ([sonrakiKod]) varsa
+/// aynı dinlenme kuralı geçerlidir. Örn. 3 Aralık'ta 08:00-20:00 varken
+/// 2 Aralık'a gece vardiyası yazmak, gece vardiyasından çıkıp doğrudan gündüze
+/// geçmek demektir.
+///
+/// Kural, ileri yönle aynı yasak vardiya kümelerini kullanır; ancak yalnızca
+/// GERÇEK çalışma vardiyalarını ihlal sayar (izin, hafta/resmi tatil kodları
+/// "arka arkaya vardiya" oluşturmaz, uyarı üretmez).
+///
+/// [sonrakiKod] bilinmiyorsa (ertesi gün yüklü değil / ay sonu) null döner.
+String? ertesiGunDinlenmeIhlaliMetni({
+  required String personelAdi,
+  required String yeniKod,
+  required String? sonrakiKod,
+}) {
+  if (sonrakiKod == null || sonrakiKod.isEmpty) return null;
+
+  // 24:00-08:00 yazılıyorsa ertesi gün SADECE yine 24:00-08:00 olabilir;
+  // 20:00-08:00 dahil her çalışma vardiyası yasaktır.
+  const calismaVardiyalari = {kGunduz12, kGece12, kSabah8, kAksam8, kMesai};
+  final yasak = switch (yeniKod) {
+    kGece8 => calismaVardiyalari.difference({kGece8}),
+    // 20:00-08:00'dan çıkan sabah 08:00'de biter: ertesi gün gündüz/mesai yasak,
+    // yine gece olabilir.
+    kGece12 => const {kGunduz12, kSabah8, kAksam8, kMesai},
+    _ => const <String>{},
+  };
+  if (!yasak.contains(sonrakiKod)) return null;
+
+  return '$personelAdi için ertesi gün $sonrakiKod vardiyası zaten yazılı.\n'
+      '$yeniKod vardiyasından çıkan personel yeterli dinlenme süresi olmadan '
+      '$sonrakiKod vardiyasına devam edemez.';
+}

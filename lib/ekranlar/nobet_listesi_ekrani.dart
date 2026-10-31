@@ -1387,7 +1387,10 @@ class _NobetListesiEkraniState extends State<NobetListesiEkrani>
                       }
                     }
 
-                    final uyari = d.dinlenmeIhlali(gun, p.id, v.kod);
+                    // Hem önceki gün (gece → bugün) hem ertesi gün (bugün → yarın)
+                    // yönündeki dinlenme kuralı denetlenir.
+                    final uyari = d.dinlenmeIhlali(gun, p.id, v.kod) ??
+                        d.ertesiGunIhlali(gun, p.id, v.kod);
                     if (uyari == null) {
                       d.kodAta(gun, p.id, v.kod);
                       return;

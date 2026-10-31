@@ -241,10 +241,13 @@ Giriş artık istemcide değil `functions/` altındaki HTTPS fonksiyonlarında
   - `false` (geçiş): giriş sunucudan, ama kayıt/ilk kurulum/şifre atama eski
     yoldan (kullanıcı kaydına doğrudan SHA-256 yazılır) — eski sürümler de
     çalışsın diye. Kurallar (`firestore.rules`) hâlâ `auth != null`.
-  - `true`: `npSifreleriTasi` çalıştırıldıktan sonra. Kayıt/şifre yalnızca
-    sunucudan; kullanıcı kayıtlarında şifre özeti yoktur. Bu aşamada
-    `firestore.kilitli.rules` yayınlanır (rol/bordro/birim bazlı, anonim yok).
-    **Tüm cihazlar yeni sürüme geçmeden yayınlama** — eski sürümler kilitlenir.
+  - `true` (**2026-10-31'den beri canlı**): `npSifreleriTasi` çalıştırıldı.
+    Kayıt/şifre yalnızca sunucudan; kullanıcı kayıtlarında şifre özeti yoktur.
+    `firestore.rules` rol/bordro/birim bazlıdır, anonim oturum `nobet_pro`ya
+    giremez. Eski sürümler (anonim oturumla çalışanlar) giriş yapamaz.
+    Kural özeti: `kullanicilar_*` yalnızca yönetici; `bordro_*`/`ucretler_*`
+    yalnızca `bordro` claim'i; `nobet_*` yazma yalnızca editör/yönetici ve
+    "sadece PDF" olmayan; `kisitliBirim` doluysa diğer birimin belgeleri kapalı.
 - Yerel yedek modda (`YerelGirisServisi`) bunların hiçbiri geçerli değil.
 - Bilinen sınır: `kurum_` dokümanındaki Onay Kodu giriş yapmış herkesçe
   okunabilir; sunucuya taşınmadı.

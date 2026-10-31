@@ -7,7 +7,9 @@
 #            Inno Setup ile kurulum dosyası   (Windows; bkz. CLAUDE.md / hafıza)
 param([switch]$AtlaAndroid)
 
-$ErrorActionPreference = 'Stop'
+# NOT: $ErrorActionPreference = 'Stop' KULLANMA — Windows PowerShell 5.1'de
+# flutter'ın stderr'e yazdığı bilgi satırları (ör. "Wasm dry run succeeded")
+# hata sayılıp betiği keser. Başarı yalnızca çıkış koduyla (LASTEXITCODE) anlaşılır.
 $etiket = Get-Date -Format 'yyMMdd-HHmm'
 Write-Host "Derleme etiketi: $etiket"
 

@@ -25,10 +25,14 @@ service cloud.firestore {
     // onların "giriş şart" kuralı okumada işe yaramaz. Bu yüzden onlar
     // burada açıkça hariç tutuluyor; yeni korumalı bir koleksiyon
     // eklenirse bu listeye de eklenmeli.
+    //
+    // nobet_gizli: yalnızca Cloud Functions (Admin SDK) kullanır — şifre
+    // kayıtları ve hatalı deneme sayaçları. İstemciye tamamen kapalıdır;
+    // kurallar Admin SDK'yı etkilemez.
     match /{kol}/{belge=**} {
-      allow read: if !(kol in ['nobet_pro', 'ny_kullanicilar', 'fcm_tokens']);
+      allow read: if !(kol in ['nobet_pro', 'ny_kullanicilar', 'fcm_tokens', 'nobet_gizli']);
       allow write: if request.auth != null
-                   && !(kol in ['nobet_pro', 'ny_kullanicilar', 'fcm_tokens']);
+                   && !(kol in ['nobet_pro', 'ny_kullanicilar', 'fcm_tokens', 'nobet_gizli']);
     }
   }
 }

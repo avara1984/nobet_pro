@@ -3,6 +3,9 @@ const admin = require('firebase-admin');
 
 admin.initializeApp();
 
+// Giriş uç noktaları (npDurum, npGiris, ...) — bkz. giris.js
+Object.assign(exports, require('./giris'));
+
 // Nöbet Sistemi'nde duyurular tek doküman-per-kurum olarak saklanır:
 // nobet_pro/duyurular_<kurumId>, içerik 'j' alanında JSON dizisi (bkz.
 // lib/servisler/yerel_servis.dart ve lib/servisler/firestore_servis.dart —

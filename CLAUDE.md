@@ -58,7 +58,9 @@ silindi. Mevcut testler:
 - `test/firestore_servis_test.dart` — `FirestoreServis` CRUD'u, önek
   taramaları ve yedek gidiş-dönüşü (`fake_cloud_firestore` ile, ağsız).
 
-Nöbet listesi ve kapsama motoru için test henüz yazılmadı.
+Ayrıca `kapsama_madde3_test`, `liste_doldur_test`, `hafta_araligi_test`,
+`donem_haftalik_test`, `giris_servisi_test` (sunucu çağrıları `MockClient` ile)
+gibi testler de `test/` altındadır; sunucu tarafı için `functions/test/`.
 
 PDF çıktısında Türkçe karakterlerin doğru görünmesi için `assets/fonts/`
 altında `Roboto-Regular.ttf` ve `Roboto-Bold.ttf` bulunmalı (yoksa
@@ -107,6 +109,15 @@ tanımaz. Bu tek yönlü bağımlılığı koru.
   Firestore kuralları birbirini tamamladığından hariç tutulmazlarsa genel
   "okuma açık" kuralı bu koleksiyonları da giriş yapmadan okunur kılar.
   Konsoldan değişiklik yaparsan dosyayı da güncelle.
+- `giris_servisi.dart` — `GirisServisi`: giriş, kayıt, ilk kurulum, şifre
+  atama, "beni hatırla" açılışı. Ekranlar kullanıcı listesini **doğrudan
+  okumaz**, bu servisi kullanır (`Provider<GirisServisi>` ile de erişilir).
+  `BulutGirisServisi` şifreyi Cloud Functions'ta (`npGiris` vb.) doğrulatır,
+  dönen özel token ile `FirebaseAuth.signInWithCustomToken` yapar;
+  `YerelGirisServisi` yedek yerel modda eski cihaz-içi mantığı korur.
+  Çağrılar düz JSON `http` ile yapılır (`cloud_functions` paketi Windows'u
+  desteklemiyor). Kayıt/şifre işlemleri sunucudaki `kilitli` bayrağına göre
+  iki yoldan gider (aşağıya bak).
 - `firebase_options.dart` — FlutterFire CLI çıktısı (eski uygulamayla aynı
   `nobet-sistemi` projesi). Elle düzenlenmez.
 - `pdf_servis.dart` — yatay A4 nöbet listesi PDF'i + yazdırma (`printing` paketi).
@@ -209,9 +220,39 @@ Yan menüdeki bölümler `Bolum` enum'u ile seçilir; "Raporlar" ve "Bordro
 İşlemleri" açılır gruplardır (`_acilir` + `_altOge`). Bordro grubundaki beş
 bölüm `kBordroBolumleri` kümesinde toplanır ve yalnızca yöneticiye görünür.
 
+## Giriş güvenliği (sunucu tarafı doğrulama)
+
+Giriş artık istemcide değil `functions/` altındaki HTTPS fonksiyonlarında
+(`npDurum`, `npGiris`, `npUyeOl`, `npYoneticiOlustur`, `npBen`,
+`npSifreAyarla`, `npSifreleriTasi`; bölge `europe-west1`, mantık
+`functions/cekirdek.js`, testler `functions/test/`, `cd functions; npm test`).
+
+- **Şifreler:** tuzlu `scrypt` (`functions/sifre.js`). Eski uygulamadan gelen
+  tuzsuz SHA-256 özetleri doğru şifreyle girilince otomatik yükseltilir.
+  Özetler `nobet_gizli/sifreler_<kurum>` içinde durur; bu koleksiyona yalnızca
+  Admin SDK erişir (**`firestore.rules` genel kuralında `nobet_gizli` hariç
+  tutulmak zorundadır**). 5 hatalı denemede TC başına 15 dk kilit.
+- **Token:** `npGiris` özel token üretir; claim'ler `nobet, rol, bordro,
+  sadecePdf, kisitliBirim, kurumId` (`etkinAlanlar` — profil kuralları
+  `Kullanici.haritadan` ile aynı tutulmalı). Yetki değişince en geç bir
+  sonraki açılışta (`npBen` taze token verir) yansır. Token üretimi için
+  çalışma hizmet hesabına "Service Account Token Creator" rolü gerekir.
+- **İki aşama (`nobet_gizli/ayar.kilitli`):**
+  - `false` (geçiş): giriş sunucudan, ama kayıt/ilk kurulum/şifre atama eski
+    yoldan (kullanıcı kaydına doğrudan SHA-256 yazılır) — eski sürümler de
+    çalışsın diye. Kurallar (`firestore.rules`) hâlâ `auth != null`.
+  - `true`: `npSifreleriTasi` çalıştırıldıktan sonra. Kayıt/şifre yalnızca
+    sunucudan; kullanıcı kayıtlarında şifre özeti yoktur. Bu aşamada
+    `firestore.kilitli.rules` yayınlanır (rol/bordro/birim bazlı, anonim yok).
+    **Tüm cihazlar yeni sürüme geçmeden yayınlama** — eski sürümler kilitlenir.
+- Yerel yedek modda (`YerelGirisServisi`) bunların hiçbiri geçerli değil.
+- Bilinen sınır: `kurum_` dokümanındaki Onay Kodu giriş yapmış herkesçe
+  okunabilir; sunucuya taşınmadı.
+
 ## Bordro alt sistemi
 
-Eski (Firebase tabanlı) uygulamadan uyarlandı; bu sürümde tamamen yereldir.
+Eski (Firebase tabanlı) uygulamadan uyarlandı; veri katmanı üzerinden
+(`VeriServisi`) Firestore'a, yedek modda cihaza yazar.
 
 - `modeller/bordro_modelleri.dart` — `VergiDilimi`, `BordroAyari` (yıllık
   sabitler), `PersonelUcreti`, `BordroSonucu`. Aynı `haritadan()`/`haritasi`

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nobet_pro/core/kimlik.dart';
+import 'package:nobet_pro/core/surum.dart';
 import 'package:nobet_pro/core/tema.dart';
 import 'package:nobet_pro/ekranlar/giris_ekrani.dart';
 import 'package:nobet_pro/modeller/modeller.dart';
@@ -114,6 +115,9 @@ void main() {
       await t.pumpAndSettle();
       expect(find.text('GİRİŞ YAP'), findsOneWidget);
       expect(find.text('Hesabınız yok mu? Üye olun'), findsOneWidget);
+      // Hangi derlemenin çalıştığı giriş ekranında görünür.
+      expect(find.text(kSurumMetni), findsOneWidget);
+      expect(kSurumMetni, contains(kDerleme));
     });
 
     testWidgets('giriş alanı: rakam girişi 11 haneyle sınırlı, kullanıcı adı değil',

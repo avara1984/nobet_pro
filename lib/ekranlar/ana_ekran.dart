@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../core/kapsama_motoru.dart';
 import '../core/mesai_hesap.dart' as mh;
+import '../core/surum.dart';
 import '../core/tarih.dart';
 import '../core/tema.dart';
 import '../durum/ekran_olcegi.dart';
@@ -389,6 +390,12 @@ class _YanMenu extends StatelessWidget {
                   children: [
                     const Text(
                       '© 2026 Mehmet SAYAR - Tüm Hakları Saklıdır',
+                      maxLines: 1,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: R.gri, fontSize: 9, height: 1.15),
+                    ),
+                    const Text(
+                      kSurumMetni,
                       maxLines: 1,
                       textAlign: TextAlign.center,
                       style: TextStyle(color: R.gri, fontSize: 9, height: 1.15),

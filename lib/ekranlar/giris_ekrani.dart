@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../core/kimlik.dart';
+import '../core/surum.dart';
 import '../core/tema.dart';
 import '../modeller/modeller.dart';
 import '../servisler/giris_servisi.dart';
@@ -195,7 +196,17 @@ class _GirisEkraniState extends State<GirisEkrani> {
             padding: const EdgeInsets.all(24),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 420),
-              child: _kart(),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _kart(),
+                  const SizedBox(height: 14),
+                  const Text(
+                    kSurumMetni,
+                    style: TextStyle(color: Colors.white54, fontSize: 11),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

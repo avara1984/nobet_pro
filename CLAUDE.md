@@ -46,7 +46,14 @@ flutter analyze                  # statik analiz (flutter_lints kuralları, anal
 flutter test                     # test paketini çalıştır
 flutter build windows            # Windows release build
 flutter build apk                # Android release build
+.\tool\derle.ps1                 # web + Windows + APK'yı AYNI derleme etiketiyle derler
 ```
+
+**Sürüm etiketi:** Yayın derlemelerini `tool/derle.ps1` ile yap (ya da
+`--dart-define=DERLEME=<yyAAgg-ssdd>` ver). Etiket (`lib/core/surum.dart`) giriş
+ekranının altında ve yan menünün alt kutusunda görünür; kullanıcı hangi
+cihazda hangi derlemenin çalıştığını buradan okur. Etiket verilmezse
+"geliştirme" görünür.
 
 **Testler:** `flutter create` şablonundan kalma bozuk `test/widget_test.dart`
 silindi. Mevcut testler:

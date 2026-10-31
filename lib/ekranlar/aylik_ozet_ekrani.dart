@@ -120,8 +120,34 @@ class _AylikOzetEkraniState extends State<AylikOzetEkrani> {
 
   /// Özet tablosunun başlık hücresi — çok satırlı başlıklarda satırlar
   /// birbirine göre ortalanır.
-  Widget _baslik(String metin) =>
-      Text(metin, textAlign: TextAlign.center);
+  static const double _baslikY = 38;
+
+  /// Sütun aralığı hücrelerin kendi iç dolgusuyla verilir (columnSpacing 0):
+  /// vardiya başlıkları hücrenin tamamını boyayabilsin diye.
+  static const double _hucreDolgu = 10;
+
+  /// Personel sütununun sol boşluğu (tablonun eski yatay kenar boşluğu).
+  static const double _kenarBosluk = 24;
+
+  Widget _baslik(String metin) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: _hucreDolgu),
+        child: Text(metin, textAlign: TextAlign.center),
+      );
+
+  /// Vardiya saati başlığı: hücrenin tamamı nöbet tablolarındaki açık
+  /// kırmızı başlık rengiyle boyanır.
+  Widget _vardiyaBaslik(BuildContext context, String metin) => Container(
+        height: _baslikY,
+        alignment: Alignment.center,
+        padding: const EdgeInsets.symmetric(horizontal: _hucreDolgu),
+        color: Tema.nobetTabloBaslik(context),
+        child: Text(metin, textAlign: TextAlign.center),
+      );
+
+  DataCell _hucre(Widget child) => DataCell(Padding(
+        padding: const EdgeInsets.symmetric(horizontal: _hucreDolgu),
+        child: child,
+      ));
 
   // ---------------------------------------------------------------------------
   Widget _ozetTablosu(
@@ -161,8 +187,9 @@ class _AylikOzetEkraniState extends State<AylikOzetEkrani> {
         scrollDirection: Axis.horizontal,
         child: DataTable(
           headingRowColor: WidgetStatePropertyAll(Tema.tabloBaslik(context)),
-          columnSpacing: 20,
-          headingRowHeight: 38,
+          columnSpacing: 0,
+          horizontalMargin: 0,
+          headingRowHeight: _baslikY,
           dataRowMinHeight: 34,
           dataRowMaxHeight: 40,
           border: TableBorder.symmetric(
@@ -170,13 +197,16 @@ class _AylikOzetEkraniState extends State<AylikOzetEkrani> {
           ),
           columns: [
             DataColumn(
-                label: _baslik('Personel'),
+                label: Padding(
+                  padding: const EdgeInsets.only(left: _kenarBosluk),
+                  child: _baslik('Personel'),
+                ),
                 headingRowAlignment: MainAxisAlignment.center),
             for (final v in calisan)
               DataColumn(
                 label: Tooltip(
                   message: '${v.etiket}  ·  ${v.saat.toStringAsFixed(1)} saat',
-                  child: _baslik(_vardiyaBasligi(v)),
+                  child: _vardiyaBaslik(context, _vardiyaBasligi(v)),
                 ),
                 numeric: true,
                 headingRowAlignment: MainAxisAlignment.center,
@@ -187,36 +217,39 @@ class _AylikOzetEkraniState extends State<AylikOzetEkrani> {
                   message: v.kod == kNobetIzni
                       ? 'İzin türü değil — bu ay nöbete yazılmayan gün sayısı'
                       : v.etiket,
-                  child: _baslik(_vardiyaBasligi(v)),
+                  child: _vardiyaBaslik(context, _vardiyaBasligi(v)),
                 ),
                 numeric: true,
                 headingRowAlignment: MainAxisAlignment.center,
               ),
             DataColumn(
-                label: _baslik('Toplam\nSaat'),
+                label: _vardiyaBaslik(context, 'Toplam\nSaat'),
                 numeric: true,
                 headingRowAlignment: MainAxisAlignment.center),
             DataColumn(
-                label: _baslik('Gece\nSaati'),
+                label: _vardiyaBaslik(context, 'Gece\nSaati'),
                 numeric: true,
                 headingRowAlignment: MainAxisAlignment.center),
             DataColumn(
-                label: _baslik('Normal\nMesai'),
+                label: _vardiyaBaslik(context, 'Normal\nMesai'),
                 numeric: true,
                 headingRowAlignment: MainAxisAlignment.center),
             DataColumn(
-                label: _baslik('Fazla\nMesai'),
+                label: _vardiyaBaslik(context, 'Fazla\nMesai'),
                 numeric: true,
                 headingRowAlignment: MainAxisAlignment.center),
             DataColumn(
-                label: _baslik('Yıllık\nİzin'),
+                label: _vardiyaBaslik(context, 'Yıllık\nİzin'),
                 numeric: true,
                 headingRowAlignment: MainAxisAlignment.center),
           ],
           rows: [
             for (final o in ozetler)
               DataRow(cells: [
-                DataCell(Row(
+                DataCell(Padding(
+                  padding: const EdgeInsets.only(
+                      left: _kenarBosluk, right: _hucreDolgu),
+                  child: Row(
                   children: [
                     CircleAvatar(
                       radius: 12,
@@ -230,10 +263,10 @@ class _AylikOzetEkraniState extends State<AylikOzetEkrani> {
                     Text(o.personel.ad,
                         style: const TextStyle(fontWeight: FontWeight.w600)),
                   ],
-                )),
+                ))),
                 for (final v in calisan) _sayiHucre(o.adet(v.kod)),
                 for (final v in izinler) _sayiHucre(o.adet(v.kod)),
-                DataCell(Center(
+                _hucre(Center(
                   child: Text(
                     o.toplamSaat.toStringAsFixed(1),
                     style: TextStyle(
@@ -246,15 +279,15 @@ class _AylikOzetEkraniState extends State<AylikOzetEkrani> {
                     ),
                   ),
                 )),
-                DataCell(Center(
+                _hucre(Center(
                   child: Text(
                     o.geceSaati == 0 ? '–' : o.geceSaati.toStringAsFixed(1),
                     style: TextStyle(
                         color: o.geceSaati > 0 ? R.maviKoyu : R.gri),
                   ),
                 )),
-                DataCell(Center(child: Text(o.normalMesai.toStringAsFixed(1)))),
-                DataCell(Center(
+                _hucre(Center(child: Text(o.normalMesai.toStringAsFixed(1)))),
+                _hucre(Center(
                   child: Text(
                     o.fazlaMesaiGunu == 0
                         ? '–'
@@ -269,7 +302,7 @@ class _AylikOzetEkraniState extends State<AylikOzetEkrani> {
                   final kullanilan = yillikIzin[o.personel.id] ??
                       o.yillikIzinKullanilan; // veri gelene kadar geçici
                   final kalan = o.personel.yillikIzinKotasi - kullanilan;
-                  return DataCell(Tooltip(
+                  return _hucre(Tooltip(
                     message: 'Hak: ${o.personel.yillikIzinKotasi} gün · '
                         '${T.aylar[d.ay - 1]} sonuna kadar (Ocak\'tan '
                         'itibaren) kullanılan: $kullanilan gün',
@@ -382,7 +415,7 @@ class _AylikOzetEkraniState extends State<AylikOzetEkrani> {
         ],
       );
 
-  DataCell _sayiHucre(int deger) => DataCell(
+  DataCell _sayiHucre(int deger) => _hucre(
         Center(
           child: Text(deger == 0 ? '–' : '$deger',
               style: TextStyle(color: deger == 0 ? R.gri : null)),

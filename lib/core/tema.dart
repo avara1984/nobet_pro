@@ -78,6 +78,13 @@ class Tema {
   static Color tabloBaslik(BuildContext c) =>
       Theme.of(c).brightness == Brightness.dark ? R.koyuBaslik : R.baslikZemin;
 
+  /// Nöbet tablolarının (Nöbet Listesi, Haftalık, 15-14) başlık satırı —
+  /// açık kırmızı zemin; üç ekranda aynı renk.
+  static Color nobetTabloBaslik(BuildContext c) =>
+      Theme.of(c).brightness == Brightness.dark
+          ? R.kirmizi.withValues(alpha: .12)
+          : const Color(0xFFFDEEEE);
+
   /// İnce çizgi rengi
   static Color kenar(BuildContext c) =>
       Theme.of(c).brightness == Brightness.dark ? Colors.white10 : R.cizgi;

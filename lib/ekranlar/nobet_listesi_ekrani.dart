@@ -968,12 +968,7 @@ class _NobetListesiEkraniState extends State<NobetListesiEkrani> {
   }
 
   /// Tarih/Günler/Personel/Durum başlık satırının zemin rengi — açık kırmızı.
-  Color _baslikZemini(BuildContext context) {
-    final koyu = Theme.of(context).brightness == Brightness.dark;
-    return koyu
-        ? R.kirmizi.withValues(alpha: .12)
-        : const Color(0xFFFDEEEE);
-  }
+  Color _baslikZemini(BuildContext context) => Tema.nobetTabloBaslik(context);
 
   Widget _metinHucre(String metin, double w,
       {bool kalin = false,

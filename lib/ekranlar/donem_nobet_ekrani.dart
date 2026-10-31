@@ -36,6 +36,8 @@ class DonemNobetEkrani extends StatefulWidget {
 class _DonemNobetEkraniState extends State<DonemNobetEkrani> {
   final _yatayBaslik = ScrollController();
   final _yatayGovde = ScrollController();
+  // Toplam satırı (altta sabit) — gövdeyle yatayda senkron kayar.
+  final _yatayAlt = ScrollController();
 
   static const double _satirY = 27;
   static const double _baslikY = 37;
@@ -74,6 +76,9 @@ class _DonemNobetEkraniState extends State<DonemNobetEkrani> {
           _yatayBaslik.offset != _yatayGovde.offset) {
         _yatayBaslik.jumpTo(_yatayGovde.offset);
       }
+      if (_yatayAlt.hasClients && _yatayAlt.offset != _yatayGovde.offset) {
+        _yatayAlt.jumpTo(_yatayGovde.offset);
+      }
     });
   }
 
@@ -81,6 +86,7 @@ class _DonemNobetEkraniState extends State<DonemNobetEkrani> {
   void dispose() {
     _yatayBaslik.dispose();
     _yatayGovde.dispose();
+    _yatayAlt.dispose();
     super.dispose();
   }
 
@@ -343,15 +349,8 @@ class _DonemNobetEkraniState extends State<DonemNobetEkrani> {
   /// 3.5), yalnızca takvim ayı yerine 15-14 dönemi üzerinden. Personel
   /// sayısından bağımsız TEK bir kurum hedefidir — Aylık Özet'teki
   /// "X Ayı Çalışma: N Saat" ile aynı anlam.
-  double _toplamCalismaSaati(NobetDurumu d) {
-    var toplam = 0.0;
-    for (final tarih in donemGunleri(d.yil, d.ay)) {
-      if (tarih.weekday == DateTime.sunday) continue;
-      if (d.ayar.resmiTatilMi(tarih)) continue;
-      toplam += d.ayar.yarimGunMu(tarih) ? 3.5 : 7.5;
-    }
-    return toplam;
-  }
+  double _toplamCalismaSaati(NobetDurumu d) => donemCalismaSaati(d.yil, d.ay,
+      resmiTatilMi: d.ayar.resmiTatilMi, yarimGunMu: d.ayar.yarimGunMu);
 
   Widget _baslikCubugu(NobetDurumu d) {
     final baslik = Row(
@@ -490,12 +489,15 @@ class _DonemNobetEkraniState extends State<DonemNobetEkrani> {
 
   // ---------------------------------------------------------------------------
   Widget _tablo(NobetDurumu d,
-      {ScrollController? baslikCtrl, ScrollController? govdeCtrl}) {
+      {ScrollController? baslikCtrl,
+      ScrollController? govdeCtrl,
+      ScrollController? altCtrl}) {
     final personeller = d.personeller;
     final kayanW = _gunW + personeller.length * _personelW + _durumW;
     final gunler = donemGunleri(d.yil, d.ay);
     final bCtrl = baslikCtrl ?? _yatayBaslik;
     final gCtrl = govdeCtrl ?? _yatayGovde;
+    final aCtrl = altCtrl ?? _yatayAlt;
 
     if (personeller.isEmpty) {
       return const Center(
@@ -548,7 +550,6 @@ class _DonemNobetEkraniState extends State<DonemNobetEkrani> {
                   Column(
                     children: [
                       for (final tarih in gunler) _tarihHucresi(d, tarih),
-                      _ozetTarihHucresi(),
                     ],
                   ),
                   Expanded(
@@ -561,7 +562,6 @@ class _DonemNobetEkraniState extends State<DonemNobetEkrani> {
                           children: [
                             for (final tarih in gunler)
                               _gunSatiri(d, tarih, personeller),
-                            _toplamSatiri(d, personeller),
                           ],
                         ),
                       ),
@@ -570,6 +570,23 @@ class _DonemNobetEkraniState extends State<DonemNobetEkrani> {
                 ],
               ),
             ),
+          ),
+          // Toplam satırı: liste ne kadar yukarıda olursa olsun görünür.
+          Row(
+            children: [
+              _ozetTarihHucresi(),
+              Expanded(
+                child: SingleChildScrollView(
+                  controller: aCtrl,
+                  scrollDirection: Axis.horizontal,
+                  physics: const NeverScrollableScrollPhysics(),
+                  child: SizedBox(
+                    width: kayanW,
+                    child: _toplamSatiri(d, personeller),
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -709,7 +726,7 @@ class _DonemNobetEkraniState extends State<DonemNobetEkrani> {
         alignment: Alignment.center,
         padding: const EdgeInsets.symmetric(horizontal: 6),
         decoration: BoxDecoration(
-          color: Tema.tabloBaslik(context),
+          color: Tema.nobetTabloBaslik(context),
           border:
               Border(right: BorderSide(color: kenarRengi ?? _cizgi(context))),
         ),
@@ -736,7 +753,7 @@ class _DonemNobetEkraniState extends State<DonemNobetEkrani> {
       alignment: Alignment.center,
       padding: const EdgeInsets.symmetric(horizontal: 4),
       decoration: BoxDecoration(
-        color: Tema.tabloBaslik(context),
+        color: Tema.nobetTabloBaslik(context),
         border: Border(right: BorderSide(color: _cizgi(context))),
       ),
       child: Column(
@@ -1186,9 +1203,13 @@ class _DonemNobetEkraniState extends State<DonemNobetEkrani> {
     if (!mounted) return;
     final baslikCtrl = ScrollController();
     final govdeCtrl = ScrollController();
+    final altCtrl = ScrollController();
     void senkronize() {
       if (baslikCtrl.hasClients && baslikCtrl.offset != govdeCtrl.offset) {
         baslikCtrl.jumpTo(govdeCtrl.offset);
+      }
+      if (altCtrl.hasClients && altCtrl.offset != govdeCtrl.offset) {
+        altCtrl.jumpTo(govdeCtrl.offset);
       }
     }
 
@@ -1230,7 +1251,10 @@ class _DonemNobetEkraniState extends State<DonemNobetEkrani> {
                   child: SizedBox(
                     width: genislik,
                     child:
-                        _tablo(d, baslikCtrl: baslikCtrl, govdeCtrl: govdeCtrl),
+                        _tablo(d,
+                            baslikCtrl: baslikCtrl,
+                            govdeCtrl: govdeCtrl,
+                            altCtrl: altCtrl),
                   ),
                 );
               },
@@ -1243,5 +1267,6 @@ class _DonemNobetEkraniState extends State<DonemNobetEkrani> {
     govdeCtrl.removeListener(senkronize);
     baslikCtrl.dispose();
     govdeCtrl.dispose();
+    altCtrl.dispose();
   }
 }

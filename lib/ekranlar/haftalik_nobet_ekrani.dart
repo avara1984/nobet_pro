@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../core/dinlenme_kurali.dart';
+import '../core/donem_araligi.dart';
+import '../core/donem_haftalik.dart';
 import '../core/hafta_araligi.dart';
 import '../core/haftalik_ozet.dart';
 import '../core/kapsama_motoru.dart';
@@ -16,9 +18,17 @@ import 'yayin_uyarisi.dart';
 /// için bir önceki ayın son Pazartesi'sinden bir sonraki ayın ilk
 /// Pazar'ına kadar (tam haftalara dolgulu) gösterir; aynı verinin
 /// (AyKaydi) üzerinde çalışır — Nöbet Listesi ekranıyla aynı kaynak.
+///
+/// [donem] true ise "Haftalık 15 - 14" ekranıdır: aynı yapı, ama aralık
+/// seçilen ayın 15'inden sonraki ayın 14'üne kadar olan bordro dönemidir
+/// (uçlar tam Pazartesi–Pazar haftalarına tamamlanır, bkz.
+/// `core/donem_haftalik.dart`) ve en altta dönemin toplam çalışma saati
+/// gösterilir.
 class HaftalikNobetEkrani extends StatefulWidget {
-  const HaftalikNobetEkrani({super.key, required this.genis});
+  const HaftalikNobetEkrani(
+      {super.key, required this.genis, this.donem = false});
   final bool genis;
+  final bool donem;
 
   @override
   State<HaftalikNobetEkrani> createState() => _HaftalikNobetEkraniState();
@@ -27,6 +37,8 @@ class HaftalikNobetEkrani extends StatefulWidget {
 class _HaftalikNobetEkraniState extends State<HaftalikNobetEkrani> {
   final _yatayBaslik = ScrollController();
   final _yatayGovde = ScrollController();
+  // 15-14 toplam satırı (altta sabit) — gövdeyle yatayda senkron kayar.
+  final _yatayAlt = ScrollController();
 
   static const double _satirY = 27;
   static const double _baslikY = 37;
@@ -61,6 +73,9 @@ class _HaftalikNobetEkraniState extends State<HaftalikNobetEkrani> {
           _yatayBaslik.offset != _yatayGovde.offset) {
         _yatayBaslik.jumpTo(_yatayGovde.offset);
       }
+      if (_yatayAlt.hasClients && _yatayAlt.offset != _yatayGovde.offset) {
+        _yatayAlt.jumpTo(_yatayGovde.offset);
+      }
     });
   }
 
@@ -68,6 +83,7 @@ class _HaftalikNobetEkraniState extends State<HaftalikNobetEkrani> {
   void dispose() {
     _yatayBaslik.dispose();
     _yatayGovde.dispose();
+    _yatayAlt.dispose();
     super.dispose();
   }
 
@@ -75,12 +91,24 @@ class _HaftalikNobetEkraniState extends State<HaftalikNobetEkrani> {
     ..hideCurrentSnackBar()
     ..showSnackBar(SnackBar(content: Text(m), width: 380));
 
+  String get _ad => widget.donem ? 'Haftalık 15-14' : 'Haftalık Nöbet';
+
   /// Ekranın hangi versiyona bağlı çalıştığını gösteren kısa başlık.
   String get _ekranBaslik => switch (_versiyon) {
-        kVersiyonOnayli => 'Onaylanan Listeye Göre Haftalık Nöbet',
-        kVersiyonSablon => 'Aylık Normal Şablona Göre Haftalık Nöbet',
-        _ => 'Haftalık Nöbet',
+        kVersiyonOnayli => 'Onaylanan Listeye Göre $_ad',
+        kVersiyonSablon => 'Aylık Normal Şablona Göre $_ad',
+        _ => _ad,
       };
+
+  /// Ekranın gösterdiği hafta blokları (aylık ya da 15 - 14 dönemi).
+  List<List<DateTime>> _haftalar(NobetDurumu d) => widget.donem
+      ? donemHaftalikGunler(d.yil, d.ay)
+      : haftalikGunler(d.yil, d.ay);
+
+  /// Gün, asıl döneme (ay / 15-14) ait değil de dolgu günü mü? Soluk çizilir.
+  bool _dolguGunu(NobetDurumu d, DateTime tarih) => widget.donem
+      ? !donemIcindeMi(tarih, d.yil, d.ay)
+      : tarih.month != d.ay;
 
   /// Ekranın en üstündeki, "Onaylanan Liste" / "Aylık Normal Şablon"
   /// arasında geçiş yapan sekme çifti — yan menüde tek bir "Haftalık
@@ -118,8 +146,8 @@ class _HaftalikNobetEkraniState extends State<HaftalikNobetEkrani> {
         spacing: 4,
         runSpacing: 4,
         children: [
-          dugme(kVersiyonOnayli, 'Onaylanan Listeye Göre Haftalık Nöbet'),
-          dugme(kVersiyonSablon, 'Aylık Normal Şablona Göre Haftalık Nöbet'),
+          dugme(kVersiyonOnayli, 'Onaylanan Listeye Göre $_ad'),
+          dugme(kVersiyonSablon, 'Aylık Normal Şablona Göre $_ad'),
         ],
       ),
     );
@@ -139,7 +167,7 @@ class _HaftalikNobetEkraniState extends State<HaftalikNobetEkrani> {
 
     setState(() => _yukleniyor = true);
 
-    final haftalar = haftalikGunler(d.yil, d.ay);
+    final haftalar = _haftalar(d);
     final aylar = <(int, int)>{};
     for (final hafta in haftalar) {
       for (final g in hafta) {
@@ -312,7 +340,7 @@ class _HaftalikNobetEkraniState extends State<HaftalikNobetEkrani> {
   );
 
   Widget _baslikCubugu(NobetDurumu d) {
-    final haftalar = haftalikGunler(d.yil, d.ay);
+    final haftalar = _haftalar(d);
     final ilk = haftalar.first.first;
     final son = haftalar.last.last;
 
@@ -395,6 +423,22 @@ class _HaftalikNobetEkraniState extends State<HaftalikNobetEkrani> {
             icon: const Icon(Icons.undo, size: 16),
             label: const Text('Geri Al'),
           ),
+        if (widget.donem)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: .55),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xFF00C853), width: 1.5),
+            ),
+            child: Text(
+              'Toplam Çalışma: ${donemCalismaSaati(d.yil, d.ay, resmiTatilMi: d.ayar.resmiTatilMi, yarimGunMu: d.ayar.yarimGunMu).toStringAsFixed(1)} Saat',
+              style: const TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  color: R.maviKoyu),
+            ),
+          ),
     ];
     final butonlar = dar
         ? SingleChildScrollView(
@@ -449,23 +493,32 @@ class _HaftalikNobetEkraniState extends State<HaftalikNobetEkrani> {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Tema.kenar(context)),
       ),
-      child: const Text(
-        'Önceki/sonraki aydan taşan günler de düzenlenebilir; kayıtlar '
-        'ilgili ayın kendi listesine yazılır. Kilitli (yayında/onaylı) '
-        'aylardaki hücreler değiştirilemez.',
-        style: TextStyle(fontSize: 11.5, color: R.gri, height: 1.4),
+      child: Text(
+        widget.donem
+            ? 'Hafta toplamları Pazartesi–Pazar haftasının tamamını sayar; '
+                'alttaki sabit 15-14 toplamı yalnızca dönemin kendi günlerini '
+                '(soluk dolgu günleri hariç) sayar. Günler de düzenlenebilir; '
+                'kayıtlar ilgili ayın kendi listesine yazılır. Kilitli '
+                '(yayında/onaylı) aylardaki hücreler değiştirilemez.'
+            : 'Önceki/sonraki aydan taşan günler de düzenlenebilir; kayıtlar '
+                'ilgili ayın kendi listesine yazılır. Kilitli (yayında/onaylı) '
+                'aylardaki hücreler değiştirilemez.',
+        style: const TextStyle(fontSize: 11.5, color: R.gri, height: 1.4),
       ),
     );
   }
 
   // ---------------------------------------------------------------------------
   Widget _tablo(NobetDurumu d,
-      {ScrollController? baslikCtrl, ScrollController? govdeCtrl}) {
+      {ScrollController? baslikCtrl,
+      ScrollController? govdeCtrl,
+      ScrollController? altCtrl}) {
     final personeller = d.personeller;
     final kayanW = _gunW + personeller.length * _personelW + _durumW;
-    final haftalar = haftalikGunler(d.yil, d.ay);
+    final haftalar = _haftalar(d);
     final bCtrl = baslikCtrl ?? _yatayBaslik;
     final gCtrl = govdeCtrl ?? _yatayGovde;
+    final aCtrl = altCtrl ?? _yatayAlt;
 
     return Container(
       decoration: BoxDecoration(
@@ -540,6 +593,24 @@ class _HaftalikNobetEkraniState extends State<HaftalikNobetEkrani> {
               ),
             ),
           ),
+          // 15 - 14 toplamı: liste ne kadar yukarıda olursa olsun görünür.
+          if (widget.donem)
+            Row(
+              children: [
+                _donemToplamTarihHucresi(),
+                Expanded(
+                  child: SingleChildScrollView(
+                    controller: aCtrl,
+                    scrollDirection: Axis.horizontal,
+                    physics: const NeverScrollableScrollPhysics(),
+                    child: SizedBox(
+                      width: kayanW,
+                      child: _donemToplamSatiri(d, personeller),
+                    ),
+                  ),
+                ),
+              ],
+            ),
         ],
       ),
     );
@@ -564,7 +635,7 @@ class _HaftalikNobetEkraniState extends State<HaftalikNobetEkrani> {
 
   Widget _tarihHucresi(NobetDurumu d, DateTime tarih) {
     final tatil = d.ayar.resmiTatilMi(tarih);
-    final baskaAy = tarih.month != d.ay;
+    final baskaAy = _dolguGunu(d, tarih);
     return _metinHucre(
       T.tarih(tarih),
       _tarihW,
@@ -598,12 +669,85 @@ class _HaftalikNobetEkraniState extends State<HaftalikNobetEkrani> {
                 fontSize: 10.5, fontWeight: FontWeight.w700, color: R.kirmizi)),
       );
 
+  /// 15 - 14 dönem toplamı — yalnızca dönemin günleri, dolgu günleri hariç.
+  double _donemToplami(NobetDurumu d, String personelId) => haftalikToplamSaat(
+        haftaGunleri: donemGunleri(d.yil, d.ay),
+        ayar: d.ayar,
+        personelId: personelId,
+        kayitBul: (t) => _kayitIcin(t) ?? AyKaydi(yil: t.year, ay: t.month),
+      );
+
+  Widget _donemToplamTarihHucresi() => Container(
+        width: _tarihW,
+        height: _satirY,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: R.mavi.withValues(alpha: .28),
+          border: Border(
+            right: BorderSide(color: _cizgi(context)),
+            top: BorderSide(color: _haftaSiniri(context), width: 2),
+            bottom: BorderSide(color: _haftaSiniri(context), width: 2),
+          ),
+        ),
+        child: const Text('15-14',
+            maxLines: 1,
+            style: TextStyle(
+                fontSize: 11.5, fontWeight: FontWeight.w800, color: R.kirmizi)),
+      );
+
+  /// Tablonun en altı: personel başına 15 - 14 dönemi toplam çalışma saati.
+  Widget _donemToplamSatiri(NobetDurumu d, List<Personel> personeller) {
+    final sinir = BorderSide(color: _haftaSiniri(context), width: 2);
+    return Container(
+      height: _satirY,
+      decoration: BoxDecoration(
+        color: R.mavi.withValues(alpha: .28),
+        border: Border(top: sinir, bottom: sinir),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: _gunW,
+            alignment: Alignment.centerRight,
+            padding: const EdgeInsets.only(right: 8),
+            decoration: BoxDecoration(
+              border: Border(right: BorderSide(color: _cizgi(context))),
+            ),
+            child: const Text('Toplam',
+                style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800)),
+          ),
+          for (final p in personeller)
+            Container(
+              width: _personelW,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                border: Border(right: BorderSide(color: _cizgi(context))),
+              ),
+              child: Text(
+                _donemToplami(d, p.id).toStringAsFixed(1),
+                style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    color: R.kirmizi),
+              ),
+            ),
+          Container(
+            width: _durumW,
+            decoration: const BoxDecoration(
+              border: Border(right: BorderSide(color: Colors.black, width: 1)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _gunSatiri(
       NobetDurumu d, DateTime tarih, List<Personel> personeller) {
     final haftaSonuMu = T.haftaSonu(tarih);
     final tatil = d.ayar.resmiTatilMi(tarih);
     final yarim = !tatil && d.ayar.yarimGunMu(tarih);
-    final baskaAy = tarih.month != d.ay;
+    final baskaAy = _dolguGunu(d, tarih);
     return SizedBox(
       height: _satirY,
       child: Row(
@@ -685,7 +829,7 @@ class _HaftalikNobetEkraniState extends State<HaftalikNobetEkrani> {
         alignment: Alignment.center,
         padding: const EdgeInsets.symmetric(horizontal: 6),
         decoration: BoxDecoration(
-          color: Tema.tabloBaslik(context),
+          color: Tema.nobetTabloBaslik(context),
           border:
               Border(right: BorderSide(color: kenarRengi ?? _cizgi(context))),
         ),
@@ -712,7 +856,7 @@ class _HaftalikNobetEkraniState extends State<HaftalikNobetEkrani> {
       alignment: Alignment.center,
       padding: const EdgeInsets.symmetric(horizontal: 4),
       decoration: BoxDecoration(
-        color: Tema.tabloBaslik(context),
+        color: Tema.nobetTabloBaslik(context),
         border: Border(right: BorderSide(color: _cizgi(context))),
       ),
       child: Column(
@@ -1144,7 +1288,7 @@ class _HaftalikNobetEkraniState extends State<HaftalikNobetEkrani> {
         birim: d.birim,
         yil: d.yil,
         ay: d.ay,
-        haftalar: haftalikGunler(d.yil, d.ay),
+        haftalar: _haftalar(d),
         kodBul: (tarih, personelId) =>
             _kayitIcin(tarih)?.kod(tarih.day, personelId) ?? '',
         durumBul: (tarih) =>
@@ -1155,6 +1299,8 @@ class _HaftalikNobetEkraniState extends State<HaftalikNobetEkrani> {
           personelId: personelId,
           kayitBul: (t) => _kayitIcin(t) ?? AyKaydi(yil: t.year, ay: t.month),
         ),
+        donemToplamBul:
+            widget.donem ? (personelId) => _donemToplami(d, personelId) : null,
       );
     } catch (e) {
       if (mounted) _bilgi('Haftalık PDF oluşturulamadı: $e');
@@ -1172,9 +1318,13 @@ class _HaftalikNobetEkraniState extends State<HaftalikNobetEkrani> {
     if (!mounted) return;
     final baslikCtrl = ScrollController();
     final govdeCtrl = ScrollController();
+    final altCtrl = ScrollController();
     void senkronize() {
       if (baslikCtrl.hasClients && baslikCtrl.offset != govdeCtrl.offset) {
         baslikCtrl.jumpTo(govdeCtrl.offset);
+      }
+      if (altCtrl.hasClients && altCtrl.offset != govdeCtrl.offset) {
+        altCtrl.jumpTo(govdeCtrl.offset);
       }
     }
 
@@ -1222,7 +1372,10 @@ class _HaftalikNobetEkraniState extends State<HaftalikNobetEkrani> {
                   child: SizedBox(
                     width: genislik,
                     child:
-                        _tablo(d, baslikCtrl: baslikCtrl, govdeCtrl: govdeCtrl),
+                        _tablo(d,
+                            baslikCtrl: baslikCtrl,
+                            govdeCtrl: govdeCtrl,
+                            altCtrl: altCtrl),
                   ),
                 );
               },
@@ -1235,5 +1388,6 @@ class _HaftalikNobetEkraniState extends State<HaftalikNobetEkrani> {
     govdeCtrl.removeListener(senkronize);
     baslikCtrl.dispose();
     govdeCtrl.dispose();
+    altCtrl.dispose();
   }
 }

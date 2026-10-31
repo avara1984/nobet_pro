@@ -33,3 +33,21 @@ String donemBasligi(int yil, int ay) {
   final gunler = donemGunleri(yil, ay);
   return '${T.tarih(gunler.first)} - ${T.tarih(gunler.last)}';
 }
+
+/// 15 - 14 dönemindeki normal çalışma saati: Pazarlar ve resmî tatiller
+/// sayılmaz, günde 7,5 saat (yarım günlerde 3,5). Hem "15 - 14 Nöbet" hem
+/// "Haftalık 15-14" ekranındaki "Toplam Çalışma" kutusu bunu gösterir.
+double donemCalismaSaati(
+  int yil,
+  int ay, {
+  required bool Function(DateTime) resmiTatilMi,
+  required bool Function(DateTime) yarimGunMu,
+}) {
+  var toplam = 0.0;
+  for (final tarih in donemGunleri(yil, ay)) {
+    if (tarih.weekday == DateTime.sunday) continue;
+    if (resmiTatilMi(tarih)) continue;
+    toplam += yarimGunMu(tarih) ? 3.5 : 7.5;
+  }
+  return toplam;
+}

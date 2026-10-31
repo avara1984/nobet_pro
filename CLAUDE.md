@@ -188,7 +188,11 @@ ikisini de güncellemek gerekir.
 ### Ekranlar (`ekranlar/`)
 
 `ana_ekran.dart` kabuk (yan menü + üst başlık + dashboard); `nobet_listesi_ekrani.dart`
-asıl nöbet tablosu; `aylik_ozet_ekrani.dart` bordro özeti + kapsama denetimi
+asıl nöbet tablosu; `haftalik_nobet_ekrani.dart` hem Haftalık Nöbet hem (`donem: true` ile)
+Haftalık 15-14 ekranıdır — aralık `core/donem_haftalik.dart`'tan gelir (15'ini
+içeren haftanın Pazartesi'sinden 14'ünü içeren haftanın Pazar'ına), hafta
+toplamları tam haftayı, en alttaki 15-14 toplamı yalnızca dönem günlerini
+sayar; `aylik_ozet_ekrani.dart` bordro özeti + kapsama denetimi
 görünümü; `yonetim_ekranlari.dart` tek dosyada birden fazla ekranı barındırır
 (Personeller, Duyurular, Ayarlar, Kullanıcılar, Yedekleme, Raporlar) — yeni bir
 yönetim ekranı eklerken bu dosyanın mevcut bölüm düzenini (`// ====` ayraçlarıyla)

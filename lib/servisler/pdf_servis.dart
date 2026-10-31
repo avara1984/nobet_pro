@@ -453,12 +453,18 @@ class PdfServis {
     required GercekKapsama Function(DateTime tarih) durumBul,
     required double Function(List<DateTime> hafta, String personelId)
     haftaToplamBul,
+    // "Haftalık 15 - 14" için: verilirse tablonun en altına dönem toplamı
+    // satırı eklenir ve başlık 15 - 14 olarak yazılır.
+    double Function(String personelId)? donemToplamBul,
   }) async {
     await _hazirla();
     final tema = pw.ThemeData.withFont(base: _normal!, bold: _kalin!);
+    final donem = donemToplamBul != null;
     final belge = pw.Document(
-        title:
-        '${birim.etiket} ${T.ayYil(yil, ay)} Haftalık Nöbet Listesi');
+        title: donem
+            ? '${birim.etiket} ${T.ayYil(yil, ay)} Haftalık 15 - 14 Nöbet '
+                'Listesi'
+            : '${birim.etiket} ${T.ayYil(yil, ay)} Haftalık Nöbet Listesi');
 
     final ilk = haftalar.first.first;
     final son = haftalar.last.last;
@@ -487,7 +493,7 @@ class PdfServis {
         build: (ctx) => pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.stretch,
           children: [
-            _haftalikBaslik(ayar, birim, yil, ay, ilk, son),
+            _haftalikBaslik(ayar, birim, yil, ay, ilk, son, donem: donem),
             pw.SizedBox(height: 5),
             pw.Expanded(
               child: pw.FittedBox(
@@ -500,6 +506,7 @@ class PdfServis {
                   kodBul: kodBul,
                   durumBul: durumBul,
                   haftaToplamBul: haftaToplamBul,
+                  donemToplamBul: donemToplamBul,
                   sayfaGenisligi: kullanilabilirGenislik,
                 ),
               ),
@@ -513,7 +520,8 @@ class PdfServis {
   }
 
   static pw.Widget _haftalikBaslik(KurumAyari ayar, Birim birim, int yil,
-      int ay, DateTime ilk, DateTime son) {
+      int ay, DateTime ilk, DateTime son,
+      {bool donem = false}) {
     final ayYil = T.ayYil(yil, ay).toUpperCase();
     return pw.Row(
       mainAxisAlignment: pw.MainAxisAlignment.center,
@@ -536,8 +544,11 @@ class PdfServis {
             ),
             pw.SizedBox(height: 2),
             pw.Text(
-              '${birim.etiket.toUpperCase()} PERSONELİ $ayYil HAFTALIK '
-                  'NÖBET LİSTESİ',
+              donem
+                  ? '${birim.etiket.toUpperCase()} PERSONELİ $ayYil HAFTALIK '
+                      '15 - 14 NÖBET LİSTESİ'
+                  : '${birim.etiket.toUpperCase()} PERSONELİ $ayYil HAFTALIK '
+                      'NÖBET LİSTESİ',
               style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11),
             ),
             pw.SizedBox(height: 1),
@@ -557,6 +568,7 @@ class PdfServis {
     required GercekKapsama Function(DateTime tarih) durumBul,
     required double Function(List<DateTime> hafta, String personelId)
     haftaToplamBul,
+    double Function(String personelId)? donemToplamBul,
     required double sayfaGenisligi,
   }) {
     pw.Widget h(String metin) => pw.Padding(
@@ -657,6 +669,23 @@ class PdfServis {
       ));
     }
 
+    // 15 - 14 dönem toplamı — yalnızca dönemin kendi günleri (dolgu
+    // günleri hariç) toplanır; en alta tek satır.
+    if (donemToplamBul != null) {
+      satirlar.add(pw.TableRow(
+        decoration: const pw.BoxDecoration(color: PdfColors.blue100),
+        children: [
+          c('15 - 14', renk: PdfColors.red800, kalin: true),
+          c('TOPLAM', renk: PdfColors.red800, kalin: true),
+          ...personeller.map((p) => c(
+            _ondalikliSayi(donemToplamBul(p.id)),
+            renk: PdfColors.red800,
+            kalin: true,
+          )),
+        ],
+      ));
+    }
+
     return pw.Table(
       border: pw.TableBorder.all(width: 0.5),
       columnWidths: genislikler,
@@ -683,6 +712,7 @@ class PdfServis {
     required GercekKapsama Function(DateTime tarih) durumBul,
     required double Function(List<DateTime> hafta, String personelId)
     haftaToplamBul,
+    double Function(String personelId)? donemToplamBul,
   }) async {
     final bayt = await olusturHaftalik(
       ayar: ayar,
@@ -694,10 +724,13 @@ class PdfServis {
       kodBul: kodBul,
       durumBul: durumBul,
       haftaToplamBul: haftaToplamBul,
+      donemToplamBul: donemToplamBul,
     );
     await Printing.layoutPdf(
       onLayout: (_) async => bayt,
-      name: 'Haftalik_Nobet_${birim.name}_${T.donemAnahtari(yil, ay)}.pdf',
+      name: donemToplamBul != null
+          ? 'Haftalik_15-14_${birim.name}_${T.donemAnahtari(yil, ay)}.pdf'
+          : 'Haftalik_Nobet_${birim.name}_${T.donemAnahtari(yil, ay)}.pdf',
     );
   }
 

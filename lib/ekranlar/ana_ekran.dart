@@ -21,6 +21,7 @@ enum Bolum {
   dashboard,
   nobetListesi,
   haftalikNobet,
+  haftalik1514,
   donem1514,
   aylikOzet,
   duyurular,
@@ -197,7 +198,10 @@ class _AnaEkraniState extends State<AnaEkran> {
     return switch (_bolum) {
       Bolum.dashboard => _Dashboard(genis: genis),
       Bolum.nobetListesi => NobetListesiEkrani(genis: genis),
-      Bolum.haftalikNobet => HaftalikNobetEkrani(genis: genis),
+      Bolum.haftalikNobet => HaftalikNobetEkrani(
+          key: const ValueKey('haftalikNobet'), genis: genis),
+      Bolum.haftalik1514 => HaftalikNobetEkrani(
+          key: const ValueKey('haftalik1514'), genis: genis, donem: true),
       Bolum.donem1514 => DonemNobetEkrani(genis: genis),
       Bolum.aylikOzet => AylikOzetEkrani(genis: genis),
       Bolum.duyurular => DuyurularEkrani(genis: genis),
@@ -296,6 +300,9 @@ class _YanMenu extends StatelessWidget {
                   if (haftalikYetkisi)
                     _oge(Bolum.haftalikNobet, Icons.view_week_outlined,
                         'Haftalık Nöbet'),
+                  if (haftalikYetkisi)
+                    _oge(Bolum.haftalik1514, Icons.event_repeat_outlined,
+                        'Haftalık 15-14'),
                   if (haftalikYetkisi)
                     _oge(Bolum.donem1514, Icons.date_range_outlined,
                         '15 - 14 Nöbet'),

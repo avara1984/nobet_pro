@@ -16,8 +16,16 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // --- yardımcılar ---------------------------------------------------------
+    // Pasife alınan / onayı geri alınan / silinen kullanıcılar Cloud Function
+    // (kullaniciEngelle) tarafından nobet_gizli/engelli listesine yazılır;
+    // açık oturumları (ID token <= 1 saat geçerli) bu kontrolle anında düşer.
+    // Belge henüz yoksa kimse engelli sayılmaz.
+    function engelli() {
+      return exists(/databases/$(database)/documents/nobet_gizli/engelli)
+          && request.auth.uid in get(/databases/$(database)/documents/nobet_gizli/engelli).data.get('uidler', {});
+    }
     function girisli() {
-      return request.auth != null && request.auth.token.nobet == true;
+      return request.auth != null && request.auth.token.nobet == true && !engelli();
     }
     function yonetici() {
       return girisli() && request.auth.token.rol == 'yonetici';
@@ -88,6 +96,13 @@ service cloud.firestore {
         || (!bordroBelgesi(belge) && !genelBelge(belge) && yonetici()));
     }
 
+    // Bordro ve ücret belgeleri ayrı koleksiyonda: izin koleksiyon düzeyindedir,
+    // bu yüzden toplu sorgular (liste, yedek) belge kimliğine bakmadan güvenle
+    // yapılabilir ve nobet_pro'daki toplu sorgu izni gerekmez.
+    match /nobet_bordro/{belge} {
+      allow read, write: if bordroYetkili();
+    }
+
     // --- diğer uygulamalar ---------------------------------------------------
     match /fcm_tokens/{tokenId} {
       allow read, write: if request.auth != null;
@@ -103,9 +118,9 @@ service cloud.firestore {
     // tutulmazsa genel "okuma açık" kuralı onları da açar. Yeni korumalı bir
     // koleksiyon eklenirse bu listeye de eklenmeli.
     match /{kol}/{belge=**} {
-      allow read: if !(kol in ['nobet_pro', 'ny_kullanicilar', 'fcm_tokens', 'nobet_gizli']);
+      allow read: if !(kol in ['nobet_pro', 'nobet_bordro', 'ny_kullanicilar', 'fcm_tokens', 'nobet_gizli']);
       allow write: if request.auth != null
-                   && !(kol in ['nobet_pro', 'ny_kullanicilar', 'fcm_tokens', 'nobet_gizli']);
+                   && !(kol in ['nobet_pro', 'nobet_bordro', 'ny_kullanicilar', 'fcm_tokens', 'nobet_gizli']);
     }
   }
 }

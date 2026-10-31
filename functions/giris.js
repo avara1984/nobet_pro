@@ -75,6 +75,12 @@ exports.npUyeOl = uc((c, g) => cekirdek.uyeOl(c, g));
 exports.npYoneticiOlustur = uc((c, g) => cekirdek.yoneticiOlustur(c, g));
 exports.npBen = uc((c, g, k) => cekirdek.ben(c, k, g), {token: 'zorunlu'});
 exports.npSifreAyarla = uc((c, g, k) => cekirdek.sifreAyarla(c, k, g), {token: 'zorunlu'});
+exports.npOnayKodu = uc((c, g, k) => cekirdek.onayKodu(c, k, g), {token: 'zorunlu'});
+exports.npOnayKoduAyarla = uc((c, g, k) => cekirdek.onayKoduAyarla(c, k, g), {token: 'zorunlu'});
+// Veri taşıma (bordro koleksiyonu + Onay Kodu): sifreleriTasi ile aynı yetkilendirme.
+exports.npTasi = uc(
+  async (c, g, k) => cekirdek.bordroVeOnayTasi(c, k || await cekirdek.yoneticiyiDogrula(c, g), g),
+  {token: 'istege-bagli'});
 // Geçiş betiği: ID token yoksa gövdedeki yönetici kimliği + şifresiyle doğrulanır.
 exports.npSifreleriTasi = uc(
   async (c, g, k) => cekirdek.sifreleriTasi(c, k || await cekirdek.yoneticiyiDogrula(c, g), g),

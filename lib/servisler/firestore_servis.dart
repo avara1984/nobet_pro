@@ -23,8 +23,21 @@ class FirestoreServis implements VeriServisi, YedeklenebilirServis {
 
   final FirebaseFirestore _db;
 
-  CollectionReference<Map<String, dynamic>> get _kol =>
-      _db.collection('nobet_pro');
+  /// Bordro ve ücret belgeleri (`bordro_*`, `ucretler_*`) ayrı bir koleksiyonda
+  /// durur: güvenlik kuralı koleksiyon düzeyinde "bordro yetkisi" ister ve
+  /// toplu sorgular (liste, yedek) belge kimliğine bakmadan güvenle yapılabilir.
+  /// Diğer her şey `nobet_pro`dadır. Yedek JSON'unda anahtarlar düz kalır.
+  static const String _bordroKoleksiyonu = 'nobet_bordro';
+
+  static bool _bordroMu(String anahtarVeyaOnEk) =>
+      anahtarVeyaOnEk.startsWith('bordro_') ||
+      anahtarVeyaOnEk.startsWith('ucretler_');
+
+  CollectionReference<Map<String, dynamic>> _koleksiyon(String anahtar) =>
+      _db.collection(_bordroMu(anahtar) ? _bordroKoleksiyonu : 'nobet_pro');
+
+  DocumentReference<Map<String, dynamic>> _ref(String anahtar) =>
+      _koleksiyon(anahtar).doc(anahtar);
 
   /// Açılışta bulut modunun gerçekten kullanılabilir olduğunu doğrular.
   ///
@@ -39,7 +52,7 @@ class FirestoreServis implements VeriServisi, YedeklenebilirServis {
   /// Kurum ayarı dokümanı okunur: giriş yapmış her kullanıcı bunu okuyabilir
   /// (kullanıcılar dokümanı yalnızca yöneticiye açıktır).
   Future<void> saglikKontrolu(String kurumId) =>
-      _kol.doc(_kurumAnahtari(kurumId)).get();
+      _ref(_kurumAnahtari(kurumId)).get();
 
   // --- anahtarlar (YerelServis ile aynı) -------------------------------------
   String _kurumAnahtari(String id) => 'kurum_$id';
@@ -62,7 +75,7 @@ class FirestoreServis implements VeriServisi, YedeklenebilirServis {
 
   // --- ortak okuma/yazma -----------------------------------------------------
   Future<String?> _metinOku(String anahtar) async {
-    final doc = await _kol.doc(anahtar).get();
+    final doc = await _ref(anahtar).get();
     return doc.data()?['j'] as String?;
   }
 
@@ -102,7 +115,7 @@ class FirestoreServis implements VeriServisi, YedeklenebilirServis {
   }
 
   Future<void> _yaz(String anahtar, Object deger) async =>
-      _kol.doc(anahtar).set(_dokuman(anahtar, deger));
+      _ref(anahtar).set(_dokuman(anahtar, deger));
 
   /// Liste dokümanında "oku → değiştir → yaz" işlemini tek transaction'da
   /// yapar. İki cihaz aynı anda kaydederse biri diğerinin değişikliğini
@@ -112,7 +125,7 @@ class FirestoreServis implements VeriServisi, YedeklenebilirServis {
   /// eski veri üzerine yazmaktansa kullanıcı uyarılır.)
   Future<void> _listeGuncelle(
       String anahtar, bool Function(List<dynamic> liste) degistir) {
-    final ref = _kol.doc(anahtar);
+    final ref = _ref(anahtar);
     return _db.runTransaction((tx) async {
       final snap = await tx.get(ref);
       final liste = _listeCoz(snap.data()?['j'] as String?, anahtar);
@@ -145,7 +158,7 @@ class FirestoreServis implements VeriServisi, YedeklenebilirServis {
 
   /// Doküman kimliği [onEk] ile başlayan tüm kayıtlar.
   Future<Map<String, String>> _onEkleOku(String onEk) async {
-    final snap = await _kol
+    final snap = await _koleksiyon(onEk)
         .where(FieldPath.documentId, isGreaterThanOrEqualTo: onEk)
         .where(FieldPath.documentId, isLessThan: '$onEk\uf8ff')
         .get();
@@ -180,7 +193,9 @@ class FirestoreServis implements VeriServisi, YedeklenebilirServis {
 
   @override
   Future<void> kurumAyariKaydet(KurumAyari ayar) =>
-      _yaz(_kurumAnahtari(ayar.id), ayar.haritasi);
+      // "Onaylanan Liste" kodu sunucuda tutulur (nobet_gizli); kurum
+      // dokümanına yazılmaz, herkesin okuyabildiği yere düşmesin.
+      _yaz(_kurumAnahtari(ayar.id), {...ayar.haritasi}..remove('onayKodu'));
 
   // --- PERSONEL --------------------------------------------------------------
   Future<List<Personel>> _tumPersoneller(String kurumId) async =>
@@ -242,7 +257,7 @@ class FirestoreServis implements VeriServisi, YedeklenebilirServis {
   @override
   Future<void> versiyonSil(
           String kurumId, int yil, int ay, String versiyon) async =>
-      _kol.doc(_donemAnahtari(kurumId, yil, ay, versiyon)).delete();
+      _ref(_donemAnahtari(kurumId, yil, ay, versiyon)).delete();
 
   // --- DUYURU ----------------------------------------------------------------
   @override
@@ -383,7 +398,7 @@ class FirestoreServis implements VeriServisi, YedeklenebilirServis {
   @override
   Future<void> bordroSil(
           String birimId, String personelId, int yil, int ay) async =>
-      _kol.doc(_bordroAnahtari(birimId, personelId, yil, ay)).delete();
+      _ref(_bordroAnahtari(birimId, personelId, yil, ay)).delete();
 
   @override
   Future<List<BordroSonucu>> bordrolariGetir(String birimId,
@@ -456,7 +471,7 @@ class FirestoreServis implements VeriServisi, YedeklenebilirServis {
   @override
   Future<void> bordroYuklemeSil(
           String birimId, String personelId, int yil, int ay) async =>
-      _kol.doc(_bordroPdfAnahtari(birimId, personelId, yil, ay)).delete();
+      _ref(_bordroPdfAnahtari(birimId, personelId, yil, ay)).delete();
 
   // --- YEDEK -----------------------------------------------------------------
   /// [YerelServis.tumVeriyiDisaAktar] ile aynı JSON biçimini üretir —
@@ -496,7 +511,7 @@ class FirestoreServis implements VeriServisi, YedeklenebilirServis {
     var grup = _db.batch();
     var sayac = 0;
     for (final girdi in veri.entries) {
-      grup.set(_kol.doc(girdi.key), {
+      grup.set(_ref(girdi.key), {
         'j': girdi.value.toString(),
         'g': FieldValue.serverTimestamp(),
       });

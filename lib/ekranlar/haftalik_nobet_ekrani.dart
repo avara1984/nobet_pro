@@ -11,6 +11,7 @@ import '../core/tarih.dart';
 import '../core/tema.dart';
 import '../durum/nobet_durumu.dart';
 import '../modeller/modeller.dart';
+import '../servisler/giris_servisi.dart';
 import '../servisler/pdf_servis.dart';
 import 'yayin_uyarisi.dart';
 
@@ -1193,9 +1194,15 @@ class _HaftalikNobetEkraniState extends State<HaftalikNobetEkrani> {
     );
 
     if (girilen == null) return false;
-    if (d.onayKoduDogruMu(girilen)) {
-      d.kilidiAc();
-      return true;
+    try {
+      if (await d.onayKoduDogruMu(girilen)) {
+        d.kilidiAc();
+        return true;
+      }
+    } on GirisHatasi catch (e) {
+      // Çok fazla yanlış deneme veya sunucuya ulaşılamadı.
+      if (mounted) _bilgi(e.mesaj);
+      return false;
     }
     if (mounted) _bilgi('Şifre yanlış, tekrar deneyin.');
     return false;

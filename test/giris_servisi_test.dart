@@ -275,6 +275,46 @@ void main() {
     });
   });
 
+  group('Onaylanan Liste kodu', () {
+    test('bulut: kod sunucuda doğrulanır, ID token ile', () async {
+      oturum.idTokenDegeri = 'kullanici-id';
+      yanitlar['npOnayKodu'] = () => _yanit(200, {'dogru': true});
+      expect(await kur().onayKoduDogruMu('x', '4821'), true);
+      expect(cagrilar.last.ad, 'npOnayKodu');
+      expect(cagrilar.last.yetki, 'Bearer kullanici-id');
+      expect(cagrilar.last.govde, {'kurumId': 'x', 'kod': '4821'});
+
+      yanitlar['npOnayKodu'] = () => _yanit(200, {'dogru': false});
+      expect(await kur().onayKoduDogruMu('x', '0000'), false);
+    });
+
+    test('bulut: çok fazla yanlış deneme hata olarak iletilir', () async {
+      oturum.idTokenDegeri = 'id';
+      yanitlar['npOnayKodu'] = () => _yanit(
+          429, {'hata': 'Çok fazla hatalı deneme. Yaklaşık 15 dakika sonra tekrar deneyin.'});
+      await expectLater(kur().onayKoduDogruMu('x', '1111'),
+          throwsA(isA<GirisHatasi>().having((e) => e.mesaj, 'mesaj', contains('Çok fazla'))));
+    });
+
+    test('bulut: yeni kod sunucuya gönderilir', () async {
+      oturum.idTokenDegeri = 'yonetici-id';
+      yanitlar['npOnayKoduAyarla'] = () => _yanit(200, {'tamam': true});
+      await kur().onayKoduAyarla('x', '5555');
+      expect(cagrilar.last.ad, 'npOnayKoduAyarla');
+      expect(cagrilar.last.yetki, 'Bearer yonetici-id');
+      expect(cagrilar.last.govde, {'kurumId': 'x', 'kod': '5555'});
+    });
+
+    test('yerel mod: varsayılan 0000, sonra belirlenen kod geçerli', () async {
+      final yerel = YerelGirisServisi(_Kullanicilar([]));
+      expect(await yerel.onayKoduDogruMu('x', '0000'), true);
+      expect(await yerel.onayKoduDogruMu('x', '1234'), false);
+      await yerel.onayKoduAyarla('x', '1234');
+      expect(await yerel.onayKoduDogruMu('x', '1234'), true);
+      expect(await yerel.onayKoduDogruMu('x', '0000'), false);
+    });
+  });
+
   group('YerelGirisServisi.ben', () {
     test('kayıtlı uid\'den profil; pasif/onaysız ise null', () async {
       final yerel = YerelGirisServisi(_Kullanicilar([

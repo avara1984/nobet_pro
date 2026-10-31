@@ -52,3 +52,23 @@ exports.duyuruBildirimGonder = onDocumentWritten(
     }
   },
 );
+
+// Pasife alınan / onayı geri alınan / silinen kullanıcıların oturumunu düşürür:
+// uid nobet_gizli/engelli listesine yazılır (Firestore kuralları bakar) ve
+// yenileme token'ları iptal edilir. Bkz. cekirdek.js engelleriGuncelle.
+exports.kullaniciEngelle = onDocumentWritten('nobet_pro/{docId}', async (event) => {
+  const docId = event.params.docId;
+  if (!docId.startsWith('kullanicilar_')) return;
+  const oku = (snap) => {
+    try {
+      return JSON.parse(snap?.data()?.j ?? '[]');
+    } catch (e) {
+      return null;
+    }
+  };
+  const onceki = oku(event.data?.before);
+  const sonraki = oku(event.data?.after);
+  if (!Array.isArray(onceki) || !Array.isArray(sonraki)) return;
+  await require('./cekirdek').engelleriGuncelle(
+    {db: admin.firestore(), auth: admin.auth(), simdi: () => Date.now()}, onceki, sonraki);
+});

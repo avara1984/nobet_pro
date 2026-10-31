@@ -267,6 +267,7 @@ class _NobetProAppState extends State<NobetProApp> {
                         rol: oturum.rol,
                         tercihler: widget.tercihler,
                         uid: oturum.kullanici!.uid,
+                        giris: _giris,
                         sadecePdf: oturum.kullanici?.sadecePdf ?? false,
                         bordroYetkisi:
                             oturum.kullanici?.bordroYetkisi ?? false,

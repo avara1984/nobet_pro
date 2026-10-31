@@ -240,6 +240,54 @@ void main() {
     });
   });
 
+  group('Koleksiyon ayrımı ve Onay Kodu', () {
+    test('bordro ve ücret belgeleri nobet_bordro koleksiyonuna, gerisi nobet_pro\'ya yazılır',
+        () async {
+      await servis.personelUcretiKaydet(
+          birim, PersonelUcreti(personelId: 'p1', gunlukUcret: 2000));
+      await servis.bordroAyariKaydet(kurum, BordroAyari(yil: 2026));
+      await servis.personelKaydet(birim, Personel(id: 'p1', ad: 'Ali'));
+
+      Future<bool> var_(String kol, String id) async =>
+          (await db.collection(kol).doc(id).get()).exists;
+      expect(await var_('nobet_bordro', 'ucretler_$birim'), isTrue);
+      expect(await var_('nobet_bordro', 'bordro_ayari_2026'), isTrue);
+      expect(await var_('nobet_pro', 'ucretler_$birim'), isFalse);
+      expect(await var_('nobet_pro', 'personeller_$birim'), isTrue);
+      expect(await var_('nobet_bordro', 'personeller_$birim'), isFalse);
+      // Okuma da yeni yerden yapılır
+      expect((await servis.personelUcretleriGetir(birim)).single.gunlukUcret, 2000);
+    });
+
+    test('yedek bordro belgelerini de düz anahtarlarla içerir ve geri yükler', () async {
+      await servis.personelUcretiKaydet(
+          birim, PersonelUcreti(personelId: 'p1', gunlukUcret: 2000));
+      await servis.personelKaydet(birim, Personel(id: 'p1', ad: 'Ali'));
+
+      final json = await servis.tumVeriyiDisaAktar();
+      final veri = (jsonDecode(json) as Map<String, dynamic>)['veri'] as Map;
+      expect(veri.keys, contains('ucretler_$birim'));
+      expect(veri.keys, contains('personeller_$birim'));
+
+      final db2 = FakeFirebaseFirestore();
+      final servis2 = FirestoreServis(veritabani: db2);
+      await servis2.yedektenYukle(json);
+      expect((await servis2.personelUcretleriGetir(birim)).single.gunlukUcret, 2000);
+      expect(
+          (await db2.collection('nobet_bordro').doc('ucretler_$birim').get()).exists, isTrue);
+    });
+
+    test('kurum ayarına Onay Kodu yazılmaz', () async {
+      final ayar = await servis.kurumAyariGetir(kurum);
+      ayar.onayKodu = '4821';
+      await servis.kurumAyariKaydet(ayar);
+
+      final ham = await db.collection('nobet_pro').doc('kurum_$kurum').get();
+      expect(jsonDecode(ham.data()!['j'] as String), isNot(contains('onayKodu')));
+      expect((await servis.kurumAyariGetir(kurum)).onayKodu, '');
+    });
+  });
+
   group('Yedekleme', () {
     test('dışa aktar / içe aktar gidiş-dönüşü', () async {
       await servis.kurumAyariGetir(kurum); // varsayılanı yazar

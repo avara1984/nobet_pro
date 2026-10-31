@@ -743,6 +743,7 @@ class _AyarlarEkraniState extends State<AyarlarEkrani> {
     final d = context.read<NobetDurumu>();
     _ad = TextEditingController(text: d.ayar.ad);
     _alt = TextEditingController(text: d.ayar.altBaslik);
+    // Kod bulutta sunucuda durur ve okunamaz; alan boş gelir (boş = değişmez).
     _onayKodu = TextEditingController(text: d.ayar.onayKodu);
   }
 
@@ -841,7 +842,8 @@ class _AyarlarEkraniState extends State<AyarlarEkrani> {
                   maxLength: 4,
                   obscureText: _onayKoduGizli,
                   decoration: InputDecoration(
-                    labelText: 'Onaylı Liste Kodu',
+                    labelText: 'Yeni Onaylı Liste Kodu',
+                    hintText: 'değişmez',
                     counterText: '',
                     isDense: true,
                     contentPadding: const EdgeInsets.symmetric(
@@ -864,7 +866,10 @@ class _AyarlarEkraniState extends State<AyarlarEkrani> {
                   children: [
                     TextSpan(
                       text: '"Onaylanan Liste" versiyonu her zaman PIN '
-                          'korumalıdır. Boş bırakılırsa varsayılan kod ',
+                          'korumalıdır. Mevcut kod güvenlik için gösterilmez; '
+                          'değiştirmek için 4 haneli yeni kod yazın (boş '
+                          'bırakırsanız değişmez). Özel kod hiç tanımlanmadıysa '
+                          'varsayılan kod ',
                     ),
                     TextSpan(
                       text: '0000',
@@ -896,15 +901,28 @@ class _AyarlarEkraniState extends State<AyarlarEkrani> {
             Align(
               alignment: Alignment.centerLeft,
               child: FilledButton(
-                onPressed: () {
-                  ayar.onayKodu =
-                      _onayKodu.text.trim().length == 4 ? _onayKodu.text.trim() : '';
+                onPressed: () async {
+                  final yeniKod = _onayKodu.text.trim();
+                  if (yeniKod.isNotEmpty && yeniKod.length != 4) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                        content: Text('Onaylı Liste Kodu 4 haneli olmalı.')));
+                    return;
+                  }
+                  final mesaj = ScaffoldMessenger.of(context);
                   ayar.ad = _ad.text.trim();
                   ayar.altBaslik = _alt.text.trim();
-                  d.ayarKaydet(ayar);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Ayarlar kaydedildi.')),
-                  );
+                  try {
+                    await d.ayarKaydet(ayar);
+                    if (yeniKod.isNotEmpty) await d.onayKoduAyarla(yeniKod);
+                    if (!mounted) return;
+                    _onayKodu.clear();
+                    mesaj.showSnackBar(
+                      const SnackBar(content: Text('Ayarlar kaydedildi.')),
+                    );
+                  } catch (e) {
+                    mesaj.showSnackBar(
+                        SnackBar(content: Text('Ayarlar kaydedilemedi: $e')));
+                  }
                 },
                 child: const Text('Kaydet'),
               ),

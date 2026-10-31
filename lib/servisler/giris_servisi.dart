@@ -39,9 +39,20 @@ abstract class GirisServisi {
   /// oturumundan gelir).
   Future<Kullanici?> ben(String kurumId, {String? uid});
 
+  /// "Onaylanan Liste" kodu doğru mu? Bulutta doğrulama sunucudadır (kod
+  /// istemciye hiç gelmez, deneme sayısı sınırlıdır); sınır aşılırsa
+  /// [GirisHatasi].
+  Future<bool> onayKoduDogruMu(String kurumId, String kod);
+
+  /// Yeni "Onaylanan Liste" kodunu belirler (yönetici işlemi, 4 karakter).
+  Future<void> onayKoduAyarla(String kurumId, String kod);
+
   /// Oturumu kapatır.
   Future<void> cikis();
 }
+
+/// Kod tanımlı değilse (veya 4 karakter değilse) geçerli varsayılan kod.
+const String kVarsayilanOnayKodu = '0000';
 
 class GirisDurumu {
   const GirisDurumu({required this.yoneticiVar, this.kilitli = false});
@@ -173,6 +184,21 @@ class YerelGirisServisi implements GirisServisi {
     if (k.isEmpty) throw const GirisHatasi('Kullanıcı bulunamadı.');
     await _veri.kullaniciKaydet(
         kurumId, k.first.kopyala(sifreHash: Kimlik.sifreOzeti(sifre)));
+  }
+
+  @override
+  Future<bool> onayKoduDogruMu(String kurumId, String kod) async {
+    final ayar = await _veri.kurumAyariGetir(kurumId);
+    final gecerli =
+        ayar.onayKodu.length == 4 ? ayar.onayKodu : kVarsayilanOnayKodu;
+    return kod == gecerli;
+  }
+
+  @override
+  Future<void> onayKoduAyarla(String kurumId, String kod) async {
+    final ayar = await _veri.kurumAyariGetir(kurumId);
+    ayar.onayKodu = kod;
+    await _veri.kurumAyariKaydet(ayar);
   }
 
   @override
@@ -346,6 +372,19 @@ class BulutGirisServisi implements GirisServisi {
       return;
     }
     await _yerel.sifreAyarla(kurumId, uid, sifre);
+  }
+
+  @override
+  Future<bool> onayKoduDogruMu(String kurumId, String kod) async {
+    final y = await _cagir('npOnayKodu', {'kurumId': kurumId, 'kod': kod},
+        idToken: await _oturum.idToken());
+    return y['dogru'] == true;
+  }
+
+  @override
+  Future<void> onayKoduAyarla(String kurumId, String kod) async {
+    await _cagir('npOnayKoduAyarla', {'kurumId': kurumId, 'kod': kod},
+        idToken: await _oturum.idToken());
   }
 
   @override

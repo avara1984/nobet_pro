@@ -8,6 +8,7 @@ import '../core/kapsama_motoru.dart';
 import '../core/mesai_hesap.dart' as mh;
 import '../core/tarih.dart';
 import '../modeller/modeller.dart';
+import '../servisler/giris_servisi.dart';
 import '../servisler/veri_servisi.dart';
 
 // -----------------------------------------------------------------------------
@@ -78,6 +79,7 @@ class NobetDurumu extends ChangeNotifier {
     required this.rol,
     required this.tercihler,
     required this.uid,
+    this.giris,
     this.sadecePdf = false,
     this.bordroYetkisi = false,
     Birim? kisitliBirimGiris,
@@ -96,6 +98,10 @@ class NobetDurumu extends ChangeNotifier {
   final VeriServisi servis;
   final String kurumId;
   final Rol rol;
+
+  /// Giriş/yetki servisi — "Onaylanan Liste" kodu bunun üzerinden doğrulanır.
+  /// Verilmezse (testler) kod kurum ayarından okunur.
+  final GirisServisi? giris;
 
   /// Duyuru "son görüldü" zaman damgasını cihazda saklamak için — bkz.
   /// [okunmamisDuyuruSayisi] / [duyurularGoruldu].
@@ -557,10 +563,30 @@ class NobetDurumu extends ChangeNotifier {
   /// tanımlanmadıysa bile "Onaylanan Liste" PIN ile korunur (madde 12B).
   static const String kVarsayilanOnayKodu = '0000';
 
-  String get _gecerliOnayKodu =>
-      _ayar.onayKodu.length == 4 ? _ayar.onayKodu : kVarsayilanOnayKodu;
+  /// Girilen kod doğru mu? Bulutta sunucu doğrular (kod cihaza inmez; çok
+  /// fazla yanlış denemede [GirisHatasi] fırlatır).
+  Future<bool> onayKoduDogruMu(String girilen) async {
+    final g = giris;
+    if (g != null) return g.onayKoduDogruMu(kurumId, girilen);
+    final kod = _ayar.onayKodu.length == 4 ? _ayar.onayKodu : kVarsayilanOnayKodu;
+    return girilen == kod;
+  }
 
-  bool onayKoduDogruMu(String girilen) => girilen == _gecerliOnayKodu;
+  /// Yeni kodu belirler (yönetici). Yerel modda kod kurum ayarında durduğu
+  /// için bellekteki ayar da tazelenir; aksi hâlde sonraki ayar kaydı eski
+  /// kodu geri yazardı.
+  Future<void> onayKoduAyarla(String kod) async {
+    if (!yonetebilir) return;
+    final g = giris;
+    if (g != null) {
+      await g.onayKoduAyarla(kurumId, kod);
+      _ayar = await servis.kurumAyariGetir(kurumId);
+    } else {
+      _ayar.onayKodu = kod;
+      await servis.kurumAyariKaydet(_ayar);
+    }
+    notifyListeners();
+  }
 
   /// Bu oturumluk "Onaylanan Liste" kilidini açık tutar — sayfa
   /// yenilenene/ay veya versiyon değişene kadar tekrar PIN sorulmaz.

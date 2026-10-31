@@ -16,6 +16,8 @@ const sifre = require('./sifre');
 
 const KOL = 'nobet_pro';
 const GIZLI = 'nobet_gizli';
+const BORDRO_KOL = 'nobet_bordro';
+const VARSAYILAN_ONAY_KODU = '0000';
 
 const DENEME_SINIRI = 5;
 const DENEME_PENCERESI_MS = 15 * 60 * 1000;
@@ -421,9 +423,166 @@ async function sifreleriTasi(ctx, kimlikBilgisi, {kurumId}) {
   return {tasinan, kilitli: true};
 }
 
+// --- Onay Kodu ("Onaylanan Liste" PIN'i) --------------------------------------
+// Kod artık istemciye gönderilmez: doğrulama sunucuda yapılır, deneme sayısı
+// kullanıcı başına sınırlıdır. Kayıt: nobet_gizli/onay_<kurum> {kod}.
+// Henüz taşınmamış (eski) kurulumlar için kurum ayarındaki `onayKodu` okunur.
+
+async function gecerliOnayKodu(ctx, kurum) {
+  const snap = await ref(ctx.db, GIZLI, `onay_${kurum}`).get();
+  let kod;
+  if (snap.exists) {
+    kod = (snap.data() || {}).kod;
+  } else {
+    const ayar = jsonCoz(await ref(ctx.db, KOL, `kurum_${kurum}`).get(), {}, `kurum_${kurum}`);
+    kod = ayar.onayKodu;
+  }
+  // İstemci mantığı: 4 karakter değilse varsayılan kod geçerlidir.
+  return typeof kod === 'string' && kod.length === 4 ? kod : VARSAYILAN_ONAY_KODU;
+}
+
+function onayDenemeAnahtari(kurum, uid) {
+  const ozet = crypto.createHash('sha256').update(`onay:${kurum}:${uid}`).digest('hex');
+  return `deneme_${ozet.slice(0, 32)}`;
+}
+
+async function onayKodu(ctx, kimlikBilgisi, {kurumId, kod}) {
+  const kurum = kurumDogrula(kurumId);
+  const anahtar = onayDenemeAnahtari(kurum, kimlikBilgisi.uid);
+  await kilitKontrol(ctx, anahtar);
+  const dogru = sifre.esitMi(String(kod || ''), await gecerliOnayKodu(ctx, kurum));
+  if (!dogru) {
+    await hataKaydet(ctx, anahtar);
+    return {dogru: false};
+  }
+  await basariKaydet(ctx, anahtar);
+  return {dogru: true};
+}
+
+/** Yeni kod belirler. Boş metin = özel kod yok, varsayılan geçerli. */
+async function onayKoduAyarla(ctx, kimlikBilgisi, {kurumId, kod}) {
+  const kurum = kurumDogrula(kurumId);
+  yoneticiGerekli(kimlikBilgisi);
+  const k = String(kod === undefined || kod === null ? '' : kod);
+  if (k !== '' && !/^\S{4}$/.test(k)) throw new Hata(400, 'Kod 4 karakter olmalı.');
+  await ref(ctx.db, GIZLI, `onay_${kurum}`).set({kod: k});
+  return {tamam: true};
+}
+
+// --- Oturum engelleme --------------------------------------------------------
+// Pasife alınan / onayı geri alınan / silinen kullanıcının uid'i
+// nobet_gizli/engelli içine yazılır; Firestore kuralları bu listeye bakar, yani
+// açık oturum ID token'ı (<=1 saat geçerli) anında işe yaramaz hâle gelir.
+// Ayrıca yenileme token'ları iptal edilir.
+
+function engelHesapla(onceki, sonraki) {
+  const engelli = new Set();
+  const aktif = new Set();
+  for (const k of sonraki) {
+    (k.aktif === false || k.onayli === false ? engelli : aktif).add(k.uid);
+  }
+  const kalanlar = new Set(sonraki.map((k) => k.uid));
+  for (const k of onceki) if (!kalanlar.has(k.uid)) engelli.add(k.uid); // silinenler
+  return {engelli: [...engelli], aktif: [...aktif]};
+}
+
+/** Engel listesini günceller; yeni engellenenlerin yenileme token'larını iptal eder. */
+async function engelleriGuncelle(ctx, onceki, sonraki) {
+  const {engelli, aktif} = engelHesapla(onceki, sonraki);
+  const r = ref(ctx.db, GIZLI, 'engelli');
+  let yeniler = [];
+  await ctx.db.runTransaction(async (tx) => {
+    const snap = await tx.get(r);
+    const harita = {...((snap.exists && (snap.data() || {}).uidler) || {})};
+    yeniler = [];
+    for (const uid of engelli) {
+      if (!harita[uid]) {
+        harita[uid] = true;
+        yeniler.push(uid);
+      }
+    }
+    for (const uid of aktif) delete harita[uid];
+    tx.set(r, {uidler: harita});
+  });
+  for (const uid of yeniler) {
+    try {
+      await ctx.auth.revokeRefreshTokens(uid);
+    } catch (_) {
+      // Bu uid için Firebase oturumu hiç açılmamış olabilir; sorun değil.
+    }
+  }
+  return yeniler;
+}
+
+// --- Veri taşıma (tek seferlik) ----------------------------------------------
+
+const bordroMu = (id) => id.startsWith('bordro_') || id.startsWith('ucretler_');
+
+async function parcaliYaz(ctx, islemler) {
+  for (let i = 0; i < islemler.length; i += 400) {
+    const grup = ctx.db.batch();
+    for (const f of islemler.slice(i, i + 400)) f(grup);
+    await grup.commit();
+  }
+}
+
+/**
+ * adim 'kopyala': bordro/ücret belgelerini nobet_bordro'ya kopyalar (eskiler
+ *   yerinde kalır, tekrar çalıştırılabilir) ve Onay Kodu'nu gizli depoya alır.
+ * adim 'temizle': her belgenin yeni yerde birebir var olduğunu doğrular, sonra
+ *   eskileri siler; kurum ayarından onayKodu'nu çıkarır; engel listesini
+ *   mevcut kullanıcılarla tohumlar.
+ */
+async function bordroVeOnayTasi(ctx, kimlikBilgisi, {kurumId, adim}) {
+  const kurum = kurumDogrula(kurumId);
+  yoneticiGerekli(kimlikBilgisi);
+  const kaynak = (await ctx.db.collection(KOL).get()).docs.filter((d) => bordroMu(d.id));
+
+  if (adim === 'kopyala') {
+    await parcaliYaz(ctx, kaynak.map((d) => (grup) =>
+      grup.set(ref(ctx.db, BORDRO_KOL, d.id), d.data())));
+    const onayRef = ref(ctx.db, GIZLI, `onay_${kurum}`);
+    if (!(await onayRef.get()).exists) {
+      const ayar = jsonCoz(await ref(ctx.db, KOL, `kurum_${kurum}`).get(), {}, `kurum_${kurum}`);
+      const kod = typeof ayar.onayKodu === 'string' && ayar.onayKodu.length === 4 ? ayar.onayKodu : '';
+      await onayRef.set({kod});
+    }
+    return {kopyalanan: kaynak.length};
+  }
+
+  if (adim === 'temizle') {
+    for (const d of kaynak) {
+      const hedef = await ref(ctx.db, BORDRO_KOL, d.id).get();
+      if (!hedef.exists || (hedef.data() || {}).j !== (d.data() || {}).j) {
+        throw new Hata(409, `Kopyalanmamış belge var, silme durduruldu: ${d.id}`);
+      }
+    }
+    if (!(await ref(ctx.db, GIZLI, `onay_${kurum}`).get()).exists) {
+      throw new Hata(409, 'Önce "kopyala" adımı çalıştırılmalı.');
+    }
+    await parcaliYaz(ctx, kaynak.map((d) => (grup) => grup.delete(ref(ctx.db, KOL, d.id))));
+
+    // Onay Kodu artık kurum ayarında durmaz.
+    const kurumRef = ref(ctx.db, KOL, `kurum_${kurum}`);
+    const kurumSnap = await kurumRef.get();
+    if (kurumSnap.exists) {
+      const ayar = jsonCoz(kurumSnap, {}, `kurum_${kurum}`);
+      if ('onayKodu' in ayar) {
+        delete ayar.onayKodu;
+        await kurumRef.set({j: JSON.stringify(ayar)}, {merge: true});
+      }
+    }
+    const liste = await kullanicilariOku(ctx, kurum);
+    await engelleriGuncelle(ctx, [], liste);
+    return {silinen: kaynak.length};
+  }
+  throw new Hata(400, 'Geçersiz adım.');
+}
+
 module.exports = {
   Hata, durum, girisYap, ben, uyeOl, yoneticiOlustur, sifreAyarla, sifreleriTasi,
-  yoneticiyiDogrula,
+  yoneticiyiDogrula, onayKodu, onayKoduAyarla, engelHesapla, engelleriGuncelle,
+  bordroVeOnayTasi, gecerliOnayKodu,
   // testler için
   etkinAlanlar, acikProfil, DENEME_SINIRI,
 };

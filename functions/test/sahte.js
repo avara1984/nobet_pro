@@ -26,7 +26,25 @@ function sahteBaglam(baslangic = {}) {
   };
 
   const db = {
-    collection: (kol) => ({doc: (id) => doc(kol, id)}),
+    collection: (kol) => ({
+      doc: (id) => doc(kol, id),
+      get: async () => ({
+        docs: [...depo.keys()]
+          .filter((y) => y.startsWith(`${kol}/`))
+          .map((y) => {
+            const id = y.slice(kol.length + 1);
+            return {id, data: () => structuredClone(depo.get(y)), ref: doc(kol, id)};
+          }),
+      }),
+    }),
+    batch: () => {
+      const islemler = [];
+      return {
+        set: (r, v, s) => { islemler.push(() => yaz(r.yol, v, s)); },
+        delete: (r) => { islemler.push(() => depo.delete(r.yol)); },
+        commit: async () => { islemler.forEach((f) => f()); },
+      };
+    },
     runTransaction: async (fn) => {
       const yazmalar = [];
       const tx = {
@@ -41,6 +59,8 @@ function sahteBaglam(baslangic = {}) {
   };
   const auth = {
     son: null,
+    iptal: [],
+    revokeRefreshTokens: async (uid) => { auth.iptal.push(uid); },
     createCustomToken: async (uid, claims) => {
       auth.son = {uid, claims};
       return `token:${uid}`;
